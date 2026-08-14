@@ -71,7 +71,17 @@ class AquagemClient:
                 )
                 writer.write(request)
                 await writer.drain()
-                reply = await asyncio.wait_for(reader.read(256), self.timeout)
+                # TCP is a byte stream: an RTU response may arrive in several
+                # chunks. Wait for all bytes required by the decoder instead
+                # of treating the first short chunk as a complete frame.
+                reply = await asyncio.wait_for(
+                    reader.readexactly(minimum_reply), self.timeout
+                )
+            except asyncio.IncompleteReadError as err:
+                partial = err.partial
+                raise AquagemProtocolError(
+                    f"Trame trop courte ({len(partial)} octets): {partial.hex(' ')}"
+                ) from err
             except (OSError, TimeoutError, asyncio.TimeoutError) as err:
                 raise AquagemConnectionError(str(err)) from err
             finally:
@@ -79,8 +89,6 @@ class AquagemClient:
                     writer.close()
                     await writer.wait_closed()
 
-        if len(reply) < minimum_reply:
-            raise AquagemProtocolError(f"Trame trop courte ({len(reply)} octets)")
         return reply
 
     async def _send(self, request: bytes) -> None:

@@ -1,7 +1,6 @@
 """Aquagem speed command."""
 
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.const import UnitOfRotationalSpeed
 
 from .const import DOMAIN, MAX_SPEED, MIN_SPEED
 from .entity import AquagemEntity
@@ -16,7 +15,7 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
     _attr_native_min_value = MIN_SPEED
     _attr_native_max_value = MAX_SPEED
     _attr_native_step = 10
-    _attr_native_unit_of_measurement = UnitOfRotationalSpeed.REVOLUTIONS_PER_MINUTE
+    _attr_native_unit_of_measurement = "rpm"
     _attr_mode = NumberMode.SLIDER
 
     def __init__(self, coordinator, entry):

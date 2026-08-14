@@ -39,3 +39,5 @@ La valeur `1` n'est volontairement pas utilisée pour arrêter la pompe : le flo
 > Important : le classeur constructeur n'était pas accessible lors de la génération. Tester d'abord sur une installation surveillée. Si le variateur répond avec une trame différente, activer les journaux Home Assistant et ouvrir un ticket avec la trame reçue.
 
 Une passerelle silencieuse n'empêche pas l'ajout de l'intégration. Les entités sont créées comme indisponibles et la lecture est retentée automatiquement selon l'intervalle configuré.
+
+Depuis la version 0.1.2, les réponses TCP fragmentées sont réassemblées avant décodage et l'unité `rpm` est compatible avec Home Assistant 2026.

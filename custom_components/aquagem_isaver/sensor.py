@@ -1,7 +1,6 @@
 """Aquagem speed sensor."""
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import UnitOfRotationalSpeed
 
 from .const import DOMAIN
 from .entity import AquagemEntity
@@ -13,7 +12,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 class AquagemSpeedSensor(AquagemEntity, SensorEntity):
     _attr_translation_key = "speed"
-    _attr_native_unit_of_measurement = UnitOfRotationalSpeed.REVOLUTIONS_PER_MINUTE
+    _attr_native_unit_of_measurement = "rpm"
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
