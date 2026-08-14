@@ -43,6 +43,25 @@ class AquagemClient:
         self.timeout = timeout
         self._lock = asyncio.Lock()
 
+    async def test_connection(self) -> None:
+        """Check that the TCP gateway accepts a connection.
+
+        A silent RTU-buffered gateway must not block creation of the Home
+        Assistant entry. Actual protocol replies are checked by the coordinator.
+        """
+        async with self._lock:
+            writer = None
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(self.host, self.port), self.timeout
+                )
+            except (OSError, TimeoutError, asyncio.TimeoutError) as err:
+                raise AquagemConnectionError(str(err)) from err
+            finally:
+                if writer is not None:
+                    writer.close()
+                    await writer.wait_closed()
+
     async def _exchange(self, request: bytes, minimum_reply: int = 7) -> bytes:
         async with self._lock:
             writer = None

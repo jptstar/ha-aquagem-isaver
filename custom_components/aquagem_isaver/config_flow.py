@@ -15,7 +15,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-from .protocol import AquagemClient, AquagemError
+from .protocol import AquagemClient, AquagemConnectionError
 
 
 class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -29,9 +29,10 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST]
             await self.async_set_unique_id(f"{host}:{user_input[CONF_PORT]}")
             self._abort_if_unique_id_configured()
+            client = AquagemClient(host, user_input[CONF_PORT])
             try:
-                await AquagemClient(host, user_input[CONF_PORT]).read_speed()
-            except AquagemError:
+                await client.test_connection()
+            except AquagemConnectionError:
                 errors["base"] = "cannot_connect"
             else:
                 name = user_input.pop(CONF_NAME)

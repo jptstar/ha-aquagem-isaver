@@ -7,7 +7,7 @@
         "data": {"name": "Nom", "host": "Adresse IP", "port": "Port TCP"}
       }
     },
-    "error": {"cannot_connect": "Connexion impossible ou réponse invalide."},
+    "error": {"cannot_connect": "Impossible d'ouvrir la connexion TCP vers la passerelle."},
     "abort": {"already_configured": "Cette passerelle est déjà configurée."}
   },
   "options": {

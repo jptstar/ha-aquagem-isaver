@@ -17,7 +17,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = AquagemCoordinator(
         hass, client, entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
-    await coordinator.async_config_entry_first_refresh()
+    # Do not prevent setup when an RTU-buffered gateway is temporarily silent
+    # or already occupied by another TCP client. The coordinator will retry.
+    await coordinator.async_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(

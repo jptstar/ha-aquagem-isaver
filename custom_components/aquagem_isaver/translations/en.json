@@ -1,7 +1,7 @@
 {
   "config": {
     "step": {"user": {"title": "Aquagem iSaver Power", "description": "Connect to the Aquagem RS485/TCP gateway.", "data": {"name": "Name", "host": "IP address", "port": "TCP port"}}},
-    "error": {"cannot_connect": "Connection failed or the reply was invalid."},
+    "error": {"cannot_connect": "Could not open a TCP connection to the gateway."},
     "abort": {"already_configured": "This gateway is already configured."}
   },
   "options": {"step": {"init": {"title": "Options", "data": {"scan_interval": "Polling interval (seconds)"}}}},

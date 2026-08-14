@@ -1,7 +1,7 @@
 {
   "config": {
     "step": {"user": {"title": "Aquagem iSaver Power", "description": "Connexion à la passerelle RS485/TCP Aquagem.", "data": {"name": "Nom", "host": "Adresse IP", "port": "Port TCP"}}},
-    "error": {"cannot_connect": "Connexion impossible ou réponse invalide."},
+    "error": {"cannot_connect": "Impossible d'ouvrir la connexion TCP vers la passerelle."},
     "abort": {"already_configured": "Cette passerelle est déjà configurée."}
   },
   "options": {"step": {"init": {"title": "Options", "data": {"scan_interval": "Intervalle de lecture (secondes)"}}}},
