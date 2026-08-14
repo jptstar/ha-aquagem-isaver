@@ -1,0 +1,9 @@
+{
+  "config": {
+    "step": {"user": {"title": "Aquagem iSaver Power", "description": "Connexion à la passerelle RS485/TCP Aquagem.", "data": {"name": "Nom", "host": "Adresse IP", "port": "Port TCP"}}},
+    "error": {"cannot_connect": "Connexion impossible ou réponse invalide."},
+    "abort": {"already_configured": "Cette passerelle est déjà configurée."}
+  },
+  "options": {"step": {"init": {"title": "Options", "data": {"scan_interval": "Intervalle de lecture (secondes)"}}}},
+  "entity": {"sensor": {"speed": {"name": "Vitesse"}}, "number": {"speed_command": {"name": "Consigne de vitesse"}}, "switch": {"pump": {"name": "Pompe"}}, "binary_sensor": {"connectivity": {"name": "Connexion"}}}
+}
