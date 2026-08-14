@@ -124,8 +124,8 @@ class AquagemClient:
         return speed
 
     async def write_speed(self, speed: int) -> None:
-        """Write a speed. Zero is the explicit stop command."""
-        if speed != 0 and not 1200 <= speed <= 2900:
-            raise ValueError("La vitesse doit être 0 ou comprise entre 1200 et 2900")
+        """Write a speed. Value one is the persistent OFF command."""
+        if speed != 1 and not 1200 <= speed <= 2900:
+            raise ValueError("La vitesse doit être 1 (arrêt) ou comprise entre 1200 et 2900")
         body = WRITE_SPEED_PREFIX + speed.to_bytes(2, "big")
         await self._send(frame(body))

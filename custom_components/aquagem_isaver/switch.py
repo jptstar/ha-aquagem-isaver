@@ -25,5 +25,6 @@ class AquagemPumpSwitch(AquagemEntity, SwitchEntity):
         await self.coordinator.async_set_speed(self.coordinator.last_running_speed)
 
     async def async_turn_off(self, **kwargs):
-        # Register 0x0BB9 value 0 is the explicit stop frame from Node-RED.
-        await self.coordinator.async_set_speed(0)
+        # The iSaver protocol uses value 1 as OFF. Value 0 is transient and
+        # the drive resumes its previously stored speed.
+        await self.coordinator.async_set_speed(1)

@@ -29,12 +29,12 @@ Cette version reprend les trames observées dans le flow Node-RED :
 
 - lecture : `AA C3 07 D1 00 02 + CRC16` ;
 - écriture : `AA D0 0B B9 [valeur 16 bits] + CRC16` ;
-- arrêt : valeur **0** ;
+- arrêt persistant : valeur **1** ;
 - marche : dernière consigne valide, 1200 tr/min au premier démarrage.
 
 Le CRC est recalculé pour chaque commande. Pour la valeur `1`, le CRC Modbus correct est envoyé en ordre RTU `CB C2`; la trame manuelle `C2 CB` visible dans le flow est inversée.
 
-La valeur `1` n'est volontairement pas utilisée pour arrêter la pompe : le flow de référence la nomme « bit vitesse fixe », tandis que sa trame d'arrêt explicite utilise `0`.
+Le test sur l'iSaver Power 1100 confirme la notation du flow « 1: OFF, 1200–2900 rpm » : la valeur `1` arrête durablement le variateur. La valeur `0` ne fait tomber la consigne que brièvement, puis le variateur reprend sa dernière vitesse mémorisée.
 
 > Important : le classeur constructeur n'était pas accessible lors de la génération. Tester d'abord sur une installation surveillée. Si le variateur répond avec une trame différente, activer les journaux Home Assistant et ouvrir un ticket avec la trame reçue.
 
@@ -43,3 +43,5 @@ Une passerelle silencieuse n'empêche pas l'ajout de l'intégration. Les entité
 Depuis la version 0.1.2, les réponses TCP fragmentées sont réassemblées avant décodage et l'unité `rpm` est compatible avec Home Assistant 2026.
 
 Depuis la version 0.1.3, aucune relecture immédiate n'est lancée après une commande : la passerelle dispose du temps nécessaire pour libérer sa connexion avant le prochain cycle normal.
+
+Depuis la version 0.1.4, le bouton Arrêt écrit la valeur `1`, qui est la commande OFF persistante confirmée sur l'appareil.
