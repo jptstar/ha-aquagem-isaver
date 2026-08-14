@@ -29,4 +29,3 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.async_set_speed(round(value))
-        await self.coordinator.async_request_refresh()

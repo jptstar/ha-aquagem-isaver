@@ -41,3 +41,5 @@ La valeur `1` n'est volontairement pas utilisée pour arrêter la pompe : le flo
 Une passerelle silencieuse n'empêche pas l'ajout de l'intégration. Les entités sont créées comme indisponibles et la lecture est retentée automatiquement selon l'intervalle configuré.
 
 Depuis la version 0.1.2, les réponses TCP fragmentées sont réassemblées avant décodage et l'unité `rpm` est compatible avec Home Assistant 2026.
+
+Depuis la version 0.1.3, aucune relecture immédiate n'est lancée après une commande : la passerelle dispose du temps nécessaire pour libérer sa connexion avant le prochain cycle normal.

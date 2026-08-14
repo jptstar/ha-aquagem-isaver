@@ -23,9 +23,7 @@ class AquagemPumpSwitch(AquagemEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         await self.coordinator.async_set_speed(self.coordinator.last_running_speed)
-        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs):
         # Register 0x0BB9 value 0 is the explicit stop frame from Node-RED.
         await self.coordinator.async_set_speed(0)
-        await self.coordinator.async_request_refresh()

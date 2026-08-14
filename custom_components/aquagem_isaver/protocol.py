@@ -56,7 +56,8 @@ class AquagemClient:
                     asyncio.open_connection(self.host, self.port), self.timeout
                 )
             except (OSError, TimeoutError, asyncio.TimeoutError) as err:
-                raise AquagemConnectionError(str(err)) from err
+                detail = str(err) or f"Délai de réponse dépassé ({self.timeout:g} s)"
+                raise AquagemConnectionError(detail) from err
             finally:
                 if writer is not None:
                     writer.close()
@@ -83,7 +84,8 @@ class AquagemClient:
                     f"Trame trop courte ({len(partial)} octets): {partial.hex(' ')}"
                 ) from err
             except (OSError, TimeoutError, asyncio.TimeoutError) as err:
-                raise AquagemConnectionError(str(err)) from err
+                detail = str(err) or f"Délai de réponse dépassé ({self.timeout:g} s)"
+                raise AquagemConnectionError(detail) from err
             finally:
                 if writer is not None:
                     writer.close()
@@ -106,7 +108,8 @@ class AquagemClient:
                 writer.write(request)
                 await writer.drain()
             except (OSError, TimeoutError, asyncio.TimeoutError) as err:
-                raise AquagemConnectionError(str(err)) from err
+                detail = str(err) or f"Délai de connexion dépassé ({self.timeout:g} s)"
+                raise AquagemConnectionError(detail) from err
             finally:
                 if writer is not None:
                     writer.close()
