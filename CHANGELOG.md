@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+- Fix the integration Options screen returning HTTP 500 before rendering.
+- Replace custom Voluptuous speed validators in the UI schema with native Home Assistant number selectors.
+- Keep 1200–2900 rpm physical limits and 100 rpm speed steps.
+- Keep server-side validation for minimum/maximum range and profile speeds.
+
 ## 0.2.1
 
 - Replace the pump switch with a Home Assistant `fan` entity.
