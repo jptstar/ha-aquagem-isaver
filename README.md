@@ -7,7 +7,7 @@
 <p align="center">RS485 · Local polling · No cloud</p>
 
 <p align="center">
-  <a href="https://github.com/jptstar/ha-aquagem-isaver"><img alt="Version" src="https://img.shields.io/badge/version-0.2.1-blue"></a>
+  <a href="https://github.com/jptstar/ha-aquagem-isaver"><img alt="Version" src="https://img.shields.io/badge/version-0.2.3-blue"></a>
   <a href="https://github.com/hacs/integration"><img alt="HACS" src="https://img.shields.io/badge/HACS-Custom-41BDF5"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-blue"></a>
 </p>
@@ -63,6 +63,18 @@ You can set:
 | Max profile | `2900 rpm` | inside configured min/max |
 
 The physical protocol safety limits remain fixed: **never below 1200 rpm and never above 2900 rpm**. The configured minimum must also be lower than the configured maximum.
+
+## Reconfigure device
+
+Existing devices can be reconfigured without removing and recreating the integration.
+
+Open the Aquagem iSaver integration entry and choose **Reconfigure**. You can change:
+
+- device name
+- RS485/TCP gateway IP address
+- TCP port
+
+Home Assistant tests the new connection before saving and automatically reloads the integration after a successful change. Existing entity identities are preserved.
 
 ## Entities
 
