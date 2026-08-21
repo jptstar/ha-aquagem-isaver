@@ -7,7 +7,7 @@
 <p align="center">RS485 · Local polling · No cloud</p>
 
 <p align="center">
-  <a href="https://github.com/jptstar/ha-aquagem-isaver"><img alt="Version" src="https://img.shields.io/badge/version-0.2.0-blue"></a>
+  <a href="https://github.com/jptstar/ha-aquagem-isaver"><img alt="Version" src="https://img.shields.io/badge/version-0.2.1-blue"></a>
   <a href="https://github.com/hacs/integration"><img alt="HACS" src="https://img.shields.io/badge/HACS-Custom-41BDF5"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-blue"></a>
 </p>
@@ -18,7 +18,7 @@
 
 The integration talks directly to the proprietary iSaver RS485 protocol through a transparent RS485-to-TCP gateway.
 
-One C3 status read returns the three useful runtime values at once:
+One C3 status read returns:
 
 - register `2001`: fault bitfield
 - register `2002`: real pump running state
@@ -28,12 +28,48 @@ Speed commands are written to register `3001`.
 
 No MQTT, Node-RED or cloud service is required once the integration is installed.
 
+## Main control
+
+The pump is exposed as a Home Assistant **fan entity** so ON/OFF and variable speed are available from one control.
+
+| Control | Behaviour |
+| --- | --- |
+| OFF | Sends the validated iSaver stop value `1` |
+| ON | Restores the last running speed, constrained to the configured range |
+| Speed | Home Assistant `0–100%`, mapped to the configured RPM range |
+| Nuit | Configurable RPM profile |
+| Eco | Configurable RPM profile |
+| Jour | Configurable RPM profile |
+| Max | Configurable RPM profile |
+
+The four profiles are **Home Assistant profiles**, inspired by the previous Node-RED setup. They are not claimed to be native Modbus mode registers. Selecting a profile simply writes its configured RPM value.
+
+A manual percentage/RPM command leaves the active profile and returns to normal variable-speed control.
+
+## Options
+
+Open **Settings → Devices & services → Aquagem iSaver → Configure**.
+
+You can set:
+
+| Option | Default | Limits |
+| --- | ---: | --- |
+| Polling interval | `5 s` | 5–300 s |
+| Minimum operating speed | `1200 rpm` | 1200–2900, steps of 100 |
+| Maximum operating speed | `2900 rpm` | 1200–2900, steps of 100 |
+| Nuit profile | `1200 rpm` | inside configured min/max |
+| Eco profile | `2000 rpm` | inside configured min/max |
+| Jour profile | `2400 rpm` | inside configured min/max |
+| Max profile | `2900 rpm` | inside configured min/max |
+
+The physical protocol safety limits remain fixed: **never below 1200 rpm and never above 2900 rpm**. The configured minimum must also be lower than the configured maximum.
+
 ## Entities
 
-| Entity | Type | Source |
+| Entity | Type | Source / role |
 | --- | --- | --- |
-| Pump | Switch | Real state from `2002 bit 0` |
-| Speed setpoint | Number | Write to `3001`, 1200–2900 rpm |
+| Pump | Fan | ON/OFF, 0–100% speed and profiles |
+| RPM setpoint | Number | Direct RPM command within configured limits |
 | Actual speed | Sensor | `2003` |
 | Alarm | Binary sensor | `2001 != 0` |
 | RS485 communication error | Binary sensor | `2001 bit 4` |
@@ -53,17 +89,17 @@ No MQTT, Node-RED or cloud service is required once the integration is installed
 
 Fault and connection entities are grouped as Home Assistant diagnostics.
 
+## Upgrade note: switch → fan
+
+Starting with 0.2.1, the old pump `switch` is replaced by the variable-speed `fan` entity. The integration removes the obsolete switch registry entry during setup so it does not remain as an unavailable entity.
+
+Automations that explicitly target the former `switch` entity must be updated to the new `fan` entity.
+
 ## About the built-in iSaver modes
 
-The iSaver panel has its own stored speed modes. They are **not exposed as Modbus preset registers** by the available protocol table.
+The iSaver panel has its own stored speed modes. They are **not exposed as documented Modbus preset registers** by the available protocol table.
 
-This integration therefore does not invent Home Assistant preset modes. It writes a direct RPM override between **1200 and 2900 rpm**.
-
-That keeps the Home Assistant model simple:
-
-- **Pump OFF** → send the validated RS485 stop command
-- **Pump ON** → restore the last running RPM known by the integration
-- **Speed setpoint** → direct RPM override
+The Home Assistant profiles in this integration are therefore configurable RPM shortcuts and remain distinct from the panel's internal/manual state.
 
 The inverter can still retain or return to its own local/manual state depending on its internal priority logic.
 
@@ -121,8 +157,6 @@ Default settings:
 | Polling interval | `5 s` |
 | TCP timeout | `5 s` |
 
-The polling interval can be changed from the integration options.
-
 ## Protocol
 
 Validated request:
@@ -159,6 +193,7 @@ The assets use a transparent background and are inspired by the physical iSaver 
 
 The repository includes GitHub Actions for:
 
+- Python compilation
 - HACS validation
 - Home Assistant hassfest
 
