@@ -7,6 +7,11 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
 from .const import (
     CONF_DAY_SPEED,
@@ -33,14 +38,25 @@ from .const import (
 from .protocol import AquagemClient, AquagemConnectionError
 
 
-def _speed_step(value: int) -> int:
-    """Validate a physical iSaver speed in 100 rpm steps."""
-    value = int(value)
-    if not MIN_SPEED <= value <= MAX_SPEED:
-        raise vol.Invalid(f"speed must be between {MIN_SPEED} and {MAX_SPEED} rpm")
-    if value % SPEED_STEP:
-        raise vol.Invalid(f"speed must be a multiple of {SPEED_STEP} rpm")
-    return value
+SPEED_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=MIN_SPEED,
+        max=MAX_SPEED,
+        step=SPEED_STEP,
+        mode=NumberSelectorMode.BOX,
+        unit_of_measurement="rpm",
+    )
+)
+
+SCAN_INTERVAL_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=5,
+        max=300,
+        step=1,
+        mode=NumberSelectorMode.BOX,
+        unit_of_measurement="s",
+    )
+)
 
 
 class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -85,6 +101,18 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
         errors = {}
 
         if user_input is not None:
+            speed_keys = (
+                CONF_MIN_OPERATING_SPEED,
+                CONF_MAX_OPERATING_SPEED,
+                CONF_NIGHT_SPEED,
+                CONF_ECO_SPEED,
+                CONF_DAY_SPEED,
+                CONF_MAX_PRESET_SPEED,
+            )
+            for key in speed_keys:
+                user_input[key] = int(user_input[key])
+            user_input[CONF_SCAN_INTERVAL] = int(user_input[CONF_SCAN_INTERVAL])
+
             minimum = user_input[CONF_MIN_OPERATING_SPEED]
             maximum = user_input[CONF_MAX_OPERATING_SPEED]
             profile_speeds = (
@@ -94,7 +122,14 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
                 user_input[CONF_MAX_PRESET_SPEED],
             )
 
-            if minimum >= maximum:
+            if any(
+                speed < MIN_SPEED
+                or speed > MAX_SPEED
+                or speed % SPEED_STEP != 0
+                for speed in (minimum, maximum, *profile_speeds)
+            ):
+                errors["base"] = "invalid_speed_step"
+            elif minimum >= maximum:
                 errors["base"] = "invalid_speed_range"
             elif any(speed < minimum or speed > maximum for speed in profile_speeds):
                 errors["base"] = "profile_out_of_range"
@@ -111,37 +146,37 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
                     vol.Required(
                         CONF_SCAN_INTERVAL,
                         default=values.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=5, max=300)),
+                    ): SCAN_INTERVAL_SELECTOR,
                     vol.Required(
                         CONF_MIN_OPERATING_SPEED,
                         default=values.get(
                             CONF_MIN_OPERATING_SPEED, DEFAULT_MIN_OPERATING_SPEED
                         ),
-                    ): _speed_step,
+                    ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_MAX_OPERATING_SPEED,
                         default=values.get(
                             CONF_MAX_OPERATING_SPEED, DEFAULT_MAX_OPERATING_SPEED
                         ),
-                    ): _speed_step,
+                    ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_NIGHT_SPEED,
                         default=values.get(CONF_NIGHT_SPEED, DEFAULT_NIGHT_SPEED),
-                    ): _speed_step,
+                    ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_ECO_SPEED,
                         default=values.get(CONF_ECO_SPEED, DEFAULT_ECO_SPEED),
-                    ): _speed_step,
+                    ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_DAY_SPEED,
                         default=values.get(CONF_DAY_SPEED, DEFAULT_DAY_SPEED),
-                    ): _speed_step,
+                    ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_MAX_PRESET_SPEED,
                         default=values.get(
                             CONF_MAX_PRESET_SPEED, DEFAULT_MAX_PRESET_SPEED
                         ),
-                    ): _speed_step,
+                    ): SPEED_SELECTOR,
                 }
             ),
             errors=errors,
