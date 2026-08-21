@@ -35,6 +35,7 @@
       }
     },
     "error": {
+      "invalid_speed_step": "Les vitesses doivent être comprises entre 1200 et 2900 tr/min par pas de 100 tr/min.",
       "invalid_speed_range": "La vitesse maximale doit être supérieure à la vitesse minimale.",
       "profile_out_of_range": "Toutes les vitesses des profils doivent rester comprises entre la vitesse minimale et la vitesse maximale configurées."
     }
