@@ -9,10 +9,20 @@
           "host": "IP address",
           "port": "TCP port"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Aquagem iSaver",
+        "description": "Change the device name or RS485/TCP gateway connection. The connection is tested before saving.",
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "port": "TCP port"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Could not open a TCP connection to the gateway."
+      "cannot_connect": "Could not open a TCP connection to the gateway.",
+      "endpoint_in_use": "This IP address and TCP port are already used by another Aquagem iSaver entry."
     },
     "abort": {
       "already_configured": "This gateway is already configured."

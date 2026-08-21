@@ -9,10 +9,20 @@
           "host": "Adresse IP",
           "port": "Port TCP"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer Aquagem iSaver",
+        "description": "Modifiez le nom de l'appareil ou la connexion à la passerelle RS485/TCP. La connexion est testée avant l'enregistrement.",
+        "data": {
+          "name": "Nom",
+          "host": "Adresse IP",
+          "port": "Port TCP"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Impossible d'ouvrir la connexion TCP vers la passerelle."
+      "cannot_connect": "Impossible d'ouvrir la connexion TCP vers la passerelle.",
+      "endpoint_in_use": "Cette adresse IP et ce port TCP sont déjà utilisés par une autre entrée Aquagem iSaver."
     },
     "abort": {
       "already_configured": "Cette passerelle est déjà configurée."
