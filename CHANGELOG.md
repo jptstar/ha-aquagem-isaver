@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.4
+
+- Add an **Estimated power** sensor in watts.
+- Build the estimate from physical iSaver panel measurements at 1200, 1550, 2000, 2400 and 2900 rpm.
+- Use piecewise-linear interpolation between calibration points instead of presenting a calculated cubic law as measured power.
+- Publish a ±10 W estimate tolerance and estimated minimum/maximum attributes.
+- Return `0 W` when the reported pump state is OFF.
+- Keep the sensor explicitly documented as an estimate; C3 does not expose a validated electrical-power field.
+
 ## 0.2.3
 
 - Add a native Home Assistant **Reconfigure** flow for existing Aquagem iSaver entries.
