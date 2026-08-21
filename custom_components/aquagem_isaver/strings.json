@@ -2,21 +2,58 @@
   "config": {
     "step": {
       "user": {
-        "title": "Aquagem iSaver Power",
-        "description": "Connexion à la passerelle RS485/TCP Aquagem.",
-        "data": {"name": "Nom", "host": "Adresse IP", "port": "Port TCP"}
+        "title": "Aquagem iSaver",
+        "description": "Connect locally to the iSaver through an RS485/TCP gateway.",
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "port": "TCP port"
+        }
       }
     },
-    "error": {"cannot_connect": "Impossible d'ouvrir la connexion TCP vers la passerelle."},
-    "abort": {"already_configured": "Cette passerelle est déjà configurée."}
+    "error": {
+      "cannot_connect": "Could not open a TCP connection to the gateway."
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured."
+    }
   },
   "options": {
-    "step": {"init": {"title": "Options", "data": {"scan_interval": "Intervalle de lecture (secondes)"}}}
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    }
   },
   "entity": {
-    "sensor": {"speed": {"name": "Vitesse"}},
-    "number": {"speed_command": {"name": "Consigne de vitesse"}},
-    "switch": {"pump": {"name": "Pompe"}},
-    "binary_sensor": {"connectivity": {"name": "Connexion"}}
+    "sensor": {
+      "speed": {"name": "Actual speed"},
+      "fault_code": {"name": "Raw fault code"}
+    },
+    "number": {
+      "speed_command": {"name": "Speed setpoint"}
+    },
+    "switch": {
+      "pump": {"name": "Pump"}
+    },
+    "binary_sensor": {
+      "connectivity": {"name": "Connection"},
+      "alarm": {"name": "Alarm"},
+      "rs485_error": {"name": "RS485 communication error"},
+      "temperature_derating": {"name": "High temperature speed reduction"},
+      "keypad_communication_error": {"name": "Keypad communication error"},
+      "keypad_eeprom_error": {"name": "Keypad EEPROM error"},
+      "rtc_error": {"name": "RTC clock error"},
+      "main_eeprom_error": {"name": "Main board EEPROM error"},
+      "current_detection_error": {"name": "Current detection circuit fault"},
+      "main_drive_error": {"name": "Main drive fault"},
+      "heatsink_sensor_error": {"name": "Heatsink sensor fault"},
+      "heatsink_overheat": {"name": "Heatsink overheat"},
+      "overcurrent": {"name": "Overcurrent"},
+      "input_voltage_error": {"name": "Abnormal input voltage"}
+    }
   }
 }

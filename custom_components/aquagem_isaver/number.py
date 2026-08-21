@@ -1,4 +1,4 @@
-"""Aquagem speed command."""
+"""Aquagem iSaver speed command."""
 
 from homeassistant.components.number import NumberEntity, NumberMode
 
@@ -11,6 +11,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 
 class AquagemSpeedNumber(AquagemEntity, NumberEntity):
+    """Direct RS485 RPM setpoint."""
+
     _attr_translation_key = "speed_command"
     _attr_native_min_value = MIN_SPEED
     _attr_native_max_value = MAX_SPEED
@@ -24,8 +26,14 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
 
     @property
     def native_value(self):
-        speed = self.coordinator.data["speed"]
-        return speed if speed >= MIN_SPEED else self.coordinator.last_running_speed
+        data = self.coordinator.data
+        if data is None:
+            return self.coordinator.last_running_speed
+        return (
+            data.speed
+            if data.speed >= MIN_SPEED
+            else self.coordinator.last_running_speed
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.async_set_speed(round(value))
