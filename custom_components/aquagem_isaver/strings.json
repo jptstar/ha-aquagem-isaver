@@ -21,11 +21,22 @@
   "options": {
     "step": {
       "init": {
-        "title": "Options",
+        "title": "iSaver options",
+        "description": "Set the polling interval, operating range and Home Assistant speed profiles. Speeds are limited to 1200–2900 rpm in 100 rpm steps.",
         "data": {
-          "scan_interval": "Polling interval (seconds)"
+          "scan_interval": "Polling interval (seconds)",
+          "min_operating_speed": "Minimum speed",
+          "max_operating_speed": "Maximum speed",
+          "night_speed": "Night profile speed",
+          "eco_speed": "Eco profile speed",
+          "day_speed": "Day profile speed",
+          "max_preset_speed": "Max profile speed"
         }
       }
+    },
+    "error": {
+      "invalid_speed_range": "Maximum speed must be greater than minimum speed.",
+      "profile_out_of_range": "All profile speeds must be inside the configured minimum and maximum range."
     }
   },
   "entity": {
@@ -34,10 +45,22 @@
       "fault_code": {"name": "Raw fault code"}
     },
     "number": {
-      "speed_command": {"name": "Speed setpoint"}
+      "speed_command": {"name": "RPM setpoint"}
     },
-    "switch": {
-      "pump": {"name": "Pump"}
+    "fan": {
+      "pump": {
+        "name": "Pump",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "night": "Night",
+              "eco": "Eco",
+              "day": "Day",
+              "max": "Max"
+            }
+          }
+        }
+      }
     },
     "binary_sensor": {
       "connectivity": {"name": "Connection"},
