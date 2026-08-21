@@ -35,6 +35,7 @@
       }
     },
     "error": {
+      "invalid_speed_step": "Speeds must be between 1200 and 2900 rpm in 100 rpm steps.",
       "invalid_speed_range": "Maximum speed must be greater than minimum speed.",
       "profile_out_of_range": "All profile speeds must be inside the configured minimum and maximum range."
     }
