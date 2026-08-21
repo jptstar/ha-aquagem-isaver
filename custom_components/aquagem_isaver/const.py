@@ -4,23 +4,29 @@ DOMAIN = "aquagem_isaver"
 PLATFORMS = ["sensor", "number", "fan", "binary_sensor"]
 
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_MIN_OPERATING_SPEED = "min_operating_speed"
+CONF_MAX_OPERATING_SPEED = "max_operating_speed"
 CONF_NIGHT_SPEED = "night_speed"
 CONF_ECO_SPEED = "eco_speed"
 CONF_DAY_SPEED = "day_speed"
-CONF_MAX_SPEED = "max_speed"
+CONF_MAX_PRESET_SPEED = "max_preset_speed"
 
 DEFAULT_NAME = "iSaver Power 1100"
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
 
+# Physical protocol limits. Options may narrow this range, never extend it.
 MIN_SPEED = 1200
 MAX_SPEED = 2900
+SPEED_STEP = 100
 OFF_COMMAND = 1
 
+DEFAULT_MIN_OPERATING_SPEED = 1200
+DEFAULT_MAX_OPERATING_SPEED = 2900
 DEFAULT_NIGHT_SPEED = 1200
 DEFAULT_ECO_SPEED = 2000
 DEFAULT_DAY_SPEED = 2400
-DEFAULT_MAX_SPEED = 2900
+DEFAULT_MAX_PRESET_SPEED = 2900
 
 PRESET_NIGHT = "Nuit"
 PRESET_ECO = "Eco"
