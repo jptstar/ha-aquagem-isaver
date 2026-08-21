@@ -1,9 +1,14 @@
 """Constants for Aquagem iSaver."""
 
 DOMAIN = "aquagem_isaver"
-PLATFORMS = ["sensor", "number", "switch", "binary_sensor"]
+PLATFORMS = ["sensor", "number", "fan", "binary_sensor"]
 
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_NIGHT_SPEED = "night_speed"
+CONF_ECO_SPEED = "eco_speed"
+CONF_DAY_SPEED = "day_speed"
+CONF_MAX_SPEED = "max_speed"
+
 DEFAULT_NAME = "iSaver Power 1100"
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
@@ -11,6 +16,16 @@ DEFAULT_SCAN_INTERVAL = 5
 MIN_SPEED = 1200
 MAX_SPEED = 2900
 OFF_COMMAND = 1
+
+DEFAULT_NIGHT_SPEED = 1200
+DEFAULT_ECO_SPEED = 2000
+DEFAULT_DAY_SPEED = 2400
+DEFAULT_MAX_SPEED = 2900
+
+PRESET_NIGHT = "Nuit"
+PRESET_ECO = "Eco"
+PRESET_DAY = "Jour"
+PRESET_MAX = "Max"
 
 DEVICE_ADDRESS = 0xAA
 READ_FUNCTION = 0xC3
