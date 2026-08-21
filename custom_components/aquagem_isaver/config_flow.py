@@ -65,6 +65,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
+        """Configure a new Aquagem gateway."""
         errors = {}
         if user_input is not None:
             host = user_input[CONF_HOST]
@@ -88,9 +89,63 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
+    async def async_step_reconfigure(self, user_input=None):
+        """Reconfigure an existing Aquagem gateway."""
+        errors = {}
+        reconfigure_entry = self._get_reconfigure_entry()
+
+        if user_input is not None:
+            name = str(user_input[CONF_NAME]).strip() or DEFAULT_NAME
+            host = str(user_input[CONF_HOST]).strip()
+            port = int(user_input[CONF_PORT])
+
+            endpoint_in_use = any(
+                entry.entry_id != reconfigure_entry.entry_id
+                and entry.data.get(CONF_HOST) == host
+                and entry.data.get(CONF_PORT, DEFAULT_PORT) == port
+                for entry in self._async_current_entries()
+            )
+
+            if endpoint_in_use:
+                errors["base"] = "endpoint_in_use"
+            else:
+                client = AquagemClient(host, port)
+                try:
+                    await client.test_connection()
+                except AquagemConnectionError:
+                    errors["base"] = "cannot_connect"
+                else:
+                    # Keep the config-entry identity stable while allowing the
+                    # RS485/TCP endpoint itself to change.
+                    return self.async_update_reload_and_abort(
+                        reconfigure_entry,
+                        title=name,
+                        data_updates={CONF_HOST: host, CONF_PORT: port},
+                    )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=reconfigure_entry.title): str,
+                vol.Required(
+                    CONF_HOST, default=reconfigure_entry.data[CONF_HOST]
+                ): str,
+                vol.Required(
+                    CONF_PORT,
+                    default=reconfigure_entry.data.get(CONF_PORT, DEFAULT_PORT),
+                ): int,
+            }
+        )
+        if user_input is not None:
+            schema = self.add_suggested_values_to_schema(schema, user_input)
+
+        return self.async_show_form(
+            step_id="reconfigure", data_schema=schema, errors=errors
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
+        """Return the options flow."""
         return AquagemOptionsFlow()
 
 
@@ -98,6 +153,7 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
     """Configure polling, operating limits and Home Assistant speed profiles."""
 
     async def async_step_init(self, user_input=None):
+        """Manage Aquagem options."""
         errors = {}
 
         if user_input is not None:
