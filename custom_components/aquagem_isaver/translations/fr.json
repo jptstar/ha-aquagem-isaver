@@ -21,11 +21,22 @@
   "options": {
     "step": {
       "init": {
-        "title": "Options",
+        "title": "Options iSaver",
+        "description": "Réglez l'intervalle d'actualisation, la plage de fonctionnement et les profils de vitesse Home Assistant. Les vitesses sont limitées à 1200–2900 tr/min par pas de 100 tr/min.",
         "data": {
-          "scan_interval": "Intervalle de lecture (secondes)"
+          "scan_interval": "Intervalle d'actualisation (secondes)",
+          "min_operating_speed": "Vitesse minimale",
+          "max_operating_speed": "Vitesse maximale",
+          "night_speed": "Vitesse profil Nuit",
+          "eco_speed": "Vitesse profil Eco",
+          "day_speed": "Vitesse profil Jour",
+          "max_preset_speed": "Vitesse profil Max"
         }
       }
+    },
+    "error": {
+      "invalid_speed_range": "La vitesse maximale doit être supérieure à la vitesse minimale.",
+      "profile_out_of_range": "Toutes les vitesses des profils doivent rester comprises entre la vitesse minimale et la vitesse maximale configurées."
     }
   },
   "entity": {
@@ -34,10 +45,22 @@
       "fault_code": {"name": "Code défaut brut"}
     },
     "number": {
-      "speed_command": {"name": "Consigne vitesse"}
+      "speed_command": {"name": "Consigne RPM"}
     },
-    "switch": {
-      "pump": {"name": "Pompe"}
+    "fan": {
+      "pump": {
+        "name": "Pompe",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "night": "Nuit",
+              "eco": "Eco",
+              "day": "Jour",
+              "max": "Max"
+            }
+          }
+        }
+      }
     },
     "binary_sensor": {
       "connectivity": {"name": "Connexion"},
