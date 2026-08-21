@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+- Add a native Home Assistant **Reconfigure** flow for existing Aquagem iSaver entries.
+- Allow changing the device name, gateway IP address and TCP port without deleting and recreating the integration.
+- Test the new gateway connection before saving.
+- Reject an IP/port pair already used by another Aquagem iSaver entry.
+- Reload the integration automatically after a successful reconfiguration.
+
 ## 0.2.2
 
 - Fix the integration Options screen returning HTTP 500 before rendering.
