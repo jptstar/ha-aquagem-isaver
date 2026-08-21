@@ -53,6 +53,7 @@
   "entity": {
     "sensor": {
       "speed": {"name": "Actual speed"},
+      "estimated_power": {"name": "Estimated power"},
       "fault_code": {"name": "Raw fault code"}
     },
     "number": {
