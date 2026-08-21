@@ -7,7 +7,7 @@
     "number": {
       "speed_command": {"default": "mdi:speedometer"}
     },
-    "switch": {
+    "fan": {
       "pump": {"default": "mdi:pump"}
     },
     "binary_sensor": {
