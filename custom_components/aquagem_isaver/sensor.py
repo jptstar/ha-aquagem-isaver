@@ -33,7 +33,6 @@ def estimate_power_w(rpm: int) -> int | None:
     for (rpm_low, watts_low), (rpm_high, watts_high) in zip(
         POWER_CALIBRATION_POINTS,
         POWER_CALIBRATION_POINTS[1:],
-        strict=True,
     ):
         if rpm_low <= rpm <= rpm_high:
             if rpm == rpm_low:
