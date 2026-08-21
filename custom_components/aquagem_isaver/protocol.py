@@ -3,8 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 
-from .const import READ_SPEED_BODY, WRITE_SPEED_PREFIX
+from .const import (
+    DEVICE_ADDRESS,
+    MAX_SPEED,
+    MIN_SPEED,
+    OFF_COMMAND,
+    READ_FUNCTION,
+    READ_STATUS_BODY,
+    READ_STATUS_REPLY_LENGTH,
+    WRITE_SPEED_PREFIX,
+)
 
 
 class AquagemError(Exception):
@@ -19,8 +29,17 @@ class AquagemProtocolError(AquagemError):
     """The gateway returned an invalid frame."""
 
 
+@dataclass(frozen=True, slots=True)
+class AquagemStatus:
+    """Decoded iSaver operating data returned by the C3 read."""
+
+    fault_code: int
+    pump_on: bool
+    speed: int
+
+
 def crc16_modbus(data: bytes) -> bytes:
-    """Return Modbus CRC16, least-significant byte first."""
+    """Return Modbus CRC16 in the observed RTU wire order (low byte first)."""
     crc = 0xFFFF
     for value in data:
         crc ^= value
@@ -32,6 +51,37 @@ def crc16_modbus(data: bytes) -> bytes:
 def frame(body: bytes) -> bytes:
     """Append the protocol CRC."""
     return body + crc16_modbus(body)
+
+
+def decode_status(reply: bytes) -> AquagemStatus:
+    """Decode and validate the fixed 9-byte C3 status response."""
+    if len(reply) != READ_STATUS_REPLY_LENGTH:
+        raise AquagemProtocolError(
+            f"Longueur de trame invalide ({len(reply)} octets): {reply.hex(' ')}"
+        )
+
+    if reply[0] != DEVICE_ADDRESS or reply[1] != READ_FUNCTION:
+        raise AquagemProtocolError(f"En-tête de trame invalide: {reply.hex(' ')}")
+
+    expected_crc = crc16_modbus(reply[:-2])
+    if reply[-2:] != expected_crc:
+        raise AquagemProtocolError(
+            "CRC invalide: "
+            f"reçu {reply[-2:].hex(' ')}, attendu {expected_crc.hex(' ')}"
+        )
+
+    fault_code = int.from_bytes(reply[2:4], "big")
+    pump_on = bool(reply[4] & 0x01)
+    speed = int.from_bytes(reply[5:7], "big")
+
+    if not 0 <= speed <= MAX_SPEED:
+        raise AquagemProtocolError(f"Vitesse invalide: {speed} rpm")
+
+    return AquagemStatus(
+        fault_code=fault_code,
+        pump_on=pump_on,
+        speed=speed,
+    )
 
 
 class AquagemClient:
@@ -63,7 +113,7 @@ class AquagemClient:
                     writer.close()
                     await writer.wait_closed()
 
-    async def _exchange(self, request: bytes, minimum_reply: int = 7) -> bytes:
+    async def _exchange(self, request: bytes, reply_length: int) -> bytes:
         async with self._lock:
             writer = None
             try:
@@ -72,11 +122,9 @@ class AquagemClient:
                 )
                 writer.write(request)
                 await writer.drain()
-                # TCP is a byte stream: an RTU response may arrive in several
-                # chunks. Wait for all bytes required by the decoder instead
-                # of treating the first short chunk as a complete frame.
+                # TCP is a byte stream: the RTU response can arrive fragmented.
                 reply = await asyncio.wait_for(
-                    reader.readexactly(minimum_reply), self.timeout
+                    reader.readexactly(reply_length), self.timeout
                 )
             except asyncio.IncompleteReadError as err:
                 partial = err.partial
@@ -96,8 +144,8 @@ class AquagemClient:
     async def _send(self, request: bytes) -> None:
         """Send a frame without requiring an acknowledgement.
 
-        Node-RED uses a plain ``tcp out`` node for writes. Some RTU-buffered
-        gateways therefore acknowledge nothing even though the write succeeds.
+        Some RTU-buffered gateways do not return write acknowledgements even
+        though the command is accepted by the iSaver.
         """
         async with self._lock:
             writer = None
@@ -115,17 +163,20 @@ class AquagemClient:
                     writer.close()
                     await writer.wait_closed()
 
-    async def read_speed(self) -> int:
-        """Read the actual/commanded speed from response bytes 5 and 6."""
-        reply = await self._exchange(frame(READ_SPEED_BODY))
-        speed = int.from_bytes(reply[5:7], "big")
-        if not 0 <= speed <= 65535:
-            raise AquagemProtocolError("Vitesse invalide")
-        return speed
+    async def read_status(self) -> AquagemStatus:
+        """Read faults, pump state and actual speed in one C3 request."""
+        reply = await self._exchange(
+            frame(READ_STATUS_BODY),
+            READ_STATUS_REPLY_LENGTH,
+        )
+        return decode_status(reply)
 
     async def write_speed(self, speed: int) -> None:
-        """Write a speed. Value one is the persistent OFF command."""
-        if speed != 1 and not 1200 <= speed <= 2900:
-            raise ValueError("La vitesse doit être 1 (arrêt) ou comprise entre 1200 et 2900")
+        """Write an RPM override; value 1 is the validated persistent OFF command."""
+        if speed != OFF_COMMAND and not MIN_SPEED <= speed <= MAX_SPEED:
+            raise ValueError(
+                f"La vitesse doit être {OFF_COMMAND} (arrêt) ou comprise "
+                f"entre {MIN_SPEED} et {MAX_SPEED}"
+            )
         body = WRITE_SPEED_PREFIX + speed.to_bytes(2, "big")
         await self._send(frame(body))

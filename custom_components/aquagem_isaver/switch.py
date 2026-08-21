@@ -1,8 +1,8 @@
-"""Aquagem pump switch."""
+"""Aquagem iSaver pump switch."""
 
 from homeassistant.components.switch import SwitchEntity
 
-from .const import DOMAIN, MIN_SPEED
+from .const import DOMAIN, OFF_COMMAND
 from .entity import AquagemEntity
 
 
@@ -11,6 +11,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 
 class AquagemPumpSwitch(AquagemEntity, SwitchEntity):
+    """Pump power state backed by the real register 2002 state."""
+
     _attr_translation_key = "pump"
 
     def __init__(self, coordinator, entry):
@@ -19,12 +21,11 @@ class AquagemPumpSwitch(AquagemEntity, SwitchEntity):
 
     @property
     def is_on(self):
-        return self.coordinator.data["speed"] >= MIN_SPEED
+        data = self.coordinator.data
+        return bool(data and data.pump_on)
 
     async def async_turn_on(self, **kwargs):
         await self.coordinator.async_set_speed(self.coordinator.last_running_speed)
 
     async def async_turn_off(self, **kwargs):
-        # The iSaver protocol uses value 1 as OFF. Value 0 is transient and
-        # the drive resumes its previously stored speed.
-        await self.coordinator.async_set_speed(1)
+        await self.coordinator.async_set_speed(OFF_COMMAND)

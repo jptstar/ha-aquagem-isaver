@@ -1,12 +1,12 @@
 {
   "domain": "aquagem_isaver",
-  "name": "Aquagem iSaver Power",
-  "codeowners": [],
+  "name": "Aquagem iSaver",
+  "codeowners": ["@jptstar"],
   "config_flow": true,
   "documentation": "https://github.com/jptstar/ha-aquagem-isaver",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/jptstar/ha-aquagem-isaver/issues",
   "requirements": [],
-  "version": "0.1.4"
+  "version": "0.2.0"
 }

@@ -1,39 +1,51 @@
-"""Update coordinator for Aquagem iSaver Power."""
+"""Update coordinator for Aquagem iSaver."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .protocol import AquagemClient, AquagemError
+from .const import MIN_SPEED, OFF_COMMAND
+from .protocol import AquagemClient, AquagemError, AquagemStatus
 
 
-class AquagemCoordinator(DataUpdateCoordinator[dict[str, int]]):
+class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
     """Coordinate polling and commands."""
 
     def __init__(self, hass: HomeAssistant, client: AquagemClient, interval: int) -> None:
         super().__init__(
             hass,
             logger=__import__("logging").getLogger(__name__),
-            name="Aquagem iSaver Power",
+            name="Aquagem iSaver",
             update_interval=timedelta(seconds=interval),
         )
         self.client = client
-        self.last_running_speed = 1200
+        self.last_running_speed = MIN_SPEED
 
-    async def _async_update_data(self) -> dict[str, int]:
+    async def _async_update_data(self) -> AquagemStatus:
         try:
-            speed = await self.client.read_speed()
+            status = await self.client.read_status()
         except AquagemError as err:
             raise UpdateFailed(str(err)) from err
-        if speed >= 1200:
-            self.last_running_speed = speed
-        return {"speed": speed}
+
+        if status.pump_on and status.speed >= MIN_SPEED:
+            self.last_running_speed = status.speed
+
+        return status
 
     async def async_set_speed(self, speed: int) -> None:
+        """Write a command and publish an optimistic state until the next poll."""
         await self.client.write_speed(speed)
-        if speed >= 1200:
+
+        current = self.data or AquagemStatus(fault_code=0, pump_on=False, speed=0)
+
+        if speed == OFF_COMMAND:
+            optimistic = replace(current, pump_on=False, speed=0)
+        else:
             self.last_running_speed = speed
-        self.async_set_updated_data({"speed": speed})
+            optimistic = replace(current, pump_on=True, speed=speed)
+
+        self.async_set_updated_data(optimistic)

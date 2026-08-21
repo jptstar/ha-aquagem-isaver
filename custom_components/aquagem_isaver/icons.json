@@ -1,0 +1,30 @@
+{
+  "entity": {
+    "sensor": {
+      "speed": {"default": "mdi:speedometer"},
+      "fault_code": {"default": "mdi:code-braces"}
+    },
+    "number": {
+      "speed_command": {"default": "mdi:speedometer"}
+    },
+    "switch": {
+      "pump": {"default": "mdi:pump"}
+    },
+    "binary_sensor": {
+      "connectivity": {"default": "mdi:lan-connect"},
+      "alarm": {"default": "mdi:alert-circle-outline"},
+      "rs485_error": {"default": "mdi:alert-circle-outline"},
+      "temperature_derating": {"default": "mdi:thermometer-alert"},
+      "keypad_communication_error": {"default": "mdi:alert-circle-outline"},
+      "keypad_eeprom_error": {"default": "mdi:memory"},
+      "rtc_error": {"default": "mdi:clock-alert-outline"},
+      "main_eeprom_error": {"default": "mdi:memory"},
+      "current_detection_error": {"default": "mdi:current-ac"},
+      "main_drive_error": {"default": "mdi:alert-circle-outline"},
+      "heatsink_sensor_error": {"default": "mdi:thermometer-alert"},
+      "heatsink_overheat": {"default": "mdi:thermometer-high"},
+      "overcurrent": {"default": "mdi:current-ac"},
+      "input_voltage_error": {"default": "mdi:flash-alert-outline"}
+    }
+  }
+}
