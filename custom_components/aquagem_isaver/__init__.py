@@ -23,15 +23,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
+    entity_registry = er.async_get(hass)
+
     # 0.2.1 replaces the legacy pump switch with a variable-speed fan entity.
     # Remove the old registry entry so upgrades do not leave an unavailable
     # switch behind after the platform changes.
-    entity_registry = er.async_get(hass)
     legacy_switch = entity_registry.async_get_entity_id(
         Platform.SWITCH, DOMAIN, f"{entry.entry_id}_pump"
     )
     if legacy_switch is not None:
         entity_registry.async_remove(legacy_switch)
+
+    # The estimated-power sensor was experimental and is no longer exposed.
+    # Remove its registry entry as well so upgrades do not leave a stale entity.
+    estimated_power = entity_registry.async_get_entity_id(
+        Platform.SENSOR, DOMAIN, f"{entry.entry_id}_estimated_power"
+    )
+    if estimated_power is not None:
+        entity_registry.async_remove(estimated_power)
 
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(
