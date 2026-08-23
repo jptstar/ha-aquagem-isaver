@@ -37,14 +37,15 @@ The pump is exposed as a Home Assistant **fan entity** so ON/OFF and variable sp
 | OFF | Sends the validated iSaver stop value `1` |
 | ON | Restores the last running speed, constrained to the configured range |
 | Speed | Home Assistant `0–100%`, mapped to the configured RPM range |
-| Nuit | Configurable RPM profile |
-| Eco | Configurable RPM profile |
-| Jour | Configurable RPM profile |
 | Max | Configurable RPM profile |
+| Jour | Configurable RPM profile |
+| Eco | Configurable RPM profile |
+| Nuit | Configurable RPM profile |
+| Perso | Automatically shown when the current RPM does not match any configured profile |
 
 The four profiles are **Home Assistant profiles**, inspired by the previous Node-RED setup. They are not claimed to be native Modbus mode registers. Selecting a profile simply writes its configured RPM value.
 
-A manual percentage/RPM command leaves the active profile and returns to normal variable-speed control.
+The displayed profile is determined from the **actual pump speed**. If the measured RPM exactly matches Max, Jour, Eco or Nuit, that profile is shown even when the speed was changed outside Home Assistant. Any other running speed is displayed as **Perso**. Perso has no fixed RPM of its own and selecting it does not change the current speed.
 
 ## Options
 
