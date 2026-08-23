@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_NIGHT_SPEED,
     DOMAIN,
     OFF_COMMAND,
+    PRESET_CUSTOM,
     PRESET_DAY,
     PRESET_ECO,
     PRESET_MAX,
@@ -71,10 +72,10 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
     def _preset_speeds(self) -> dict[str, int]:
         options = self._entry.options
         return {
-            PRESET_NIGHT: options.get(CONF_NIGHT_SPEED, DEFAULT_NIGHT_SPEED),
-            PRESET_ECO: options.get(CONF_ECO_SPEED, DEFAULT_ECO_SPEED),
-            PRESET_DAY: options.get(CONF_DAY_SPEED, DEFAULT_DAY_SPEED),
             PRESET_MAX: options.get(CONF_MAX_PRESET_SPEED, DEFAULT_MAX_PRESET_SPEED),
+            PRESET_DAY: options.get(CONF_DAY_SPEED, DEFAULT_DAY_SPEED),
+            PRESET_ECO: options.get(CONF_ECO_SPEED, DEFAULT_ECO_SPEED),
+            PRESET_NIGHT: options.get(CONF_NIGHT_SPEED, DEFAULT_NIGHT_SPEED),
         }
 
     def _normalize_speed(self, speed: float) -> int:
@@ -106,7 +107,7 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     @property
     def preset_modes(self) -> list[str]:
-        return list(self._preset_speeds)
+        return [*self._preset_speeds, PRESET_CUSTOM]
 
     @property
     def preset_mode(self) -> str | None:
@@ -114,12 +115,11 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
         if data is None or not data.pump_on:
             return None
 
-        preset = self.coordinator.active_preset
-        if preset is None:
-            return None
+        for preset, speed in self._preset_speeds.items():
+            if data.speed == speed:
+                return preset
 
-        expected_speed = self._preset_speeds.get(preset)
-        return preset if expected_speed == data.speed else None
+        return PRESET_CUSTOM
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set pump speed from Home Assistant's 0-100% fan control."""
@@ -134,6 +134,11 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Apply a configurable Home Assistant speed profile."""
+        if preset_mode == PRESET_CUSTOM:
+            # "Perso" describes any running speed that does not match a preset.
+            # It has no fixed RPM of its own, so selecting it leaves the speed unchanged.
+            return
+
         try:
             speed = self._preset_speeds[preset_mode]
         except KeyError as err:
