@@ -53,7 +53,6 @@
   "entity": {
     "sensor": {
       "speed": {"name": "Vitesse réelle"},
-      "estimated_power": {"name": "Puissance estimée"},
       "fault_code": {"name": "Code défaut brut"}
     },
     "number": {
