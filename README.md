@@ -84,7 +84,6 @@ Home Assistant tests the new connection before saving and automatically reloads 
 | Pump | Fan | ON/OFF, 0–100% speed and profiles |
 | RPM setpoint | Number | Direct RPM command within configured limits |
 | Actual speed | Sensor | `2003` |
-| Estimated power | Sensor | Estimated from measured RPM/power calibration points; not read from C3 |
 | Alarm | Binary sensor | `2001 != 0` |
 | RS485 communication error | Binary sensor | `2001 bit 4` |
 | High temperature speed reduction | Binary sensor | `2001 bit 5` |
@@ -102,26 +101,6 @@ Home Assistant tests the new connection before saving and automatically reloads 
 | Connection | Binary sensor | Coordinator status |
 
 Fault and connection entities are grouped as Home Assistant diagnostics.
-
-## Estimated power
-
-The available validated C3 status frame does **not** expose an electrical-power field. The **Estimated power** entity is therefore deliberately separate from the protocol data and must not be interpreted as a meter reading.
-
-It uses physical readings observed on the iSaver panel:
-
-| Actual speed | Panel power used for calibration |
-| ---: | ---: |
-| 1200 rpm | 120 W |
-| 1550 rpm | 176 W |
-| 2000 rpm | 328 W |
-| 2400 rpm | 532 W |
-| 2900 rpm | 936 W |
-
-Values between these points are calculated with piecewise-linear interpolation. The 2400 rpm observation fluctuated between approximately 528 and 536 W, so the calibration uses the midpoint `532 W`.
-
-The sensor publishes a **±10 W estimate tolerance** through its attributes, together with the corresponding estimated minimum and maximum. When the iSaver reports the pump as OFF, estimated power is `0 W`.
-
-This calibration is based on the tested iSaver Power 1100 and may not represent another motor, hydraulic installation or inverter variant with the same accuracy.
 
 ## Upgrade note: switch → fan
 
