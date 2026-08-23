@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.5
 
 - Remove the **Estimated power** sensor and its RPM-based interpolation model.
 - Remove the obsolete estimated-power entity from the Home Assistant entity registry during upgrade.
