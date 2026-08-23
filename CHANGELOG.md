@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Remove the **Estimated power** sensor and its RPM-based interpolation model.
+- Remove the obsolete estimated-power entity from the Home Assistant entity registry during upgrade.
+- Display **Max**, **Jour**, **Eco**, **Nuit** or **Perso** from the actual RPM reported by the iSaver.
+
 ## 0.2.4
 
 - Add an **Estimated power** sensor in watts.
