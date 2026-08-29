@@ -28,11 +28,12 @@ DEFAULT_ECO_SPEED = 2000
 DEFAULT_DAY_SPEED = 2400
 DEFAULT_MAX_PRESET_SPEED = 2900
 
-PRESET_MAX = "Max"
-PRESET_DAY = "Jour"
-PRESET_ECO = "Eco"
-PRESET_NIGHT = "Nuit"
-PRESET_CUSTOM = "Perso"
+# Language-neutral internal preset identifiers. Display names are translated by HA.
+PRESET_MAX = "max"
+PRESET_DAY = "day"
+PRESET_ECO = "eco"
+PRESET_NIGHT = "night"
+PRESET_CUSTOM = "custom"
 
 DEVICE_ADDRESS = 0xAA
 READ_FUNCTION = 0xC3
