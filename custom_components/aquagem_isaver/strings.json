@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Aquagem iSaver",
-        "description": "Connect locally to the iSaver through an RS485/TCP gateway.",
+        "description": "Connect locally to the iSaver through an RS485/TCP gateway. For a WaveShare gateway, use TCP Server, port 502, 1200 baud, 8N1, Flow control None, Protocol None and Multi-host disabled. Do not use Modbus TCP to RTU mode.",
         "data": {
           "name": "Name",
           "host": "IP address",
@@ -12,7 +12,7 @@
       },
       "reconfigure": {
         "title": "Reconfigure Aquagem iSaver",
-        "description": "Change the device name or RS485/TCP gateway connection. The connection is tested before saving.",
+        "description": "Change the device name or RS485/TCP gateway connection. The connection is tested before saving. The gateway must remain in transparent mode: TCP Server, 1200 baud, 8N1 and Protocol None.",
         "data": {
           "name": "Name",
           "host": "IP address",
