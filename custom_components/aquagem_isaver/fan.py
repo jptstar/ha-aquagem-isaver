@@ -34,6 +34,19 @@ from .const import (
 )
 from .entity import AquagemEntity
 
+# Accept labels used by 0.2.5 and common English equivalents when called from
+# existing automations. New state/service values remain language-neutral.
+_LEGACY_PRESET_ALIASES = {
+    "Max": PRESET_MAX,
+    "Jour": PRESET_DAY,
+    "Eco": PRESET_ECO,
+    "Nuit": PRESET_NIGHT,
+    "Perso": PRESET_CUSTOM,
+    "Day": PRESET_DAY,
+    "Night": PRESET_NIGHT,
+    "Custom": PRESET_CUSTOM,
+}
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the iSaver fan entity."""
@@ -134,9 +147,11 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Apply a configurable Home Assistant speed profile."""
+        preset_mode = _LEGACY_PRESET_ALIASES.get(preset_mode, preset_mode)
+
         if preset_mode == PRESET_CUSTOM:
-            # "Perso" describes any running speed that does not match a preset.
-            # It has no fixed RPM of its own, so selecting it leaves the speed unchanged.
+            # Custom describes any running speed that does not match a preset.
+            # It has no fixed RPM of its own, so selecting it leaves speed unchanged.
             return
 
         try:
