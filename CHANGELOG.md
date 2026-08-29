@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.7
+
+- Add validated WaveShare RS485/TCP gateway setup guidance in English and French.
+- Document the working gateway settings: TCP Server, port 502, 1200 baud, 8N1, Protocol None and Multi-host disabled.
+- Add the validated advanced WaveShare timing/settings used by the working iSaver setup.
+- Add a real anonymized WaveShare configuration screenshot to the README.
+- Remove the README Brand assets and Credits sections.
+
 ## 0.2.6
 
 - Make pump preset identifiers language-neutral internally: `max`, `day`, `eco`, `night`, `custom`.
