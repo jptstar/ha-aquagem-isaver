@@ -164,9 +164,33 @@ custom_components/aquagem_isaver
 
 into your Home Assistant `custom_components` directory, then restart Home Assistant.
 
-## Gateway
+## WaveShare gateway setup
 
-Default settings:
+The iSaver must be connected through a **transparent RS485-to-TCP gateway**. The setup below has been validated with a WaveShare gateway.
+
+<p align="center">
+  <img src="docs/images/waveshare_isaver_setup.jpg" width="900" alt="WaveShare RS485-to-TCP settings for Aquagem iSaver">
+</p>
+
+The screenshot is anonymized. The example IP addresses are placeholders, and the destination fields are not used while the gateway operates as a TCP server.
+
+| WaveShare setting | Required value |
+| --- | --- |
+| Work Mode | `TCP Server` |
+| Device Port | `502` |
+| Baud Rate | `1200` |
+| Databits | `8` |
+| Parity | `None` |
+| Stopbits | `1` |
+| Flow control | `None` |
+| Protocol | `None` |
+| Enable Multi-host | `No` |
+
+> **Important:** do not select **Modbus TCP to RTU**. The iSaver uses its own proprietary serial frames and the integration sends those frames directly through the transparent gateway.
+
+The gateway's **Device IP**, **Subnet Mask** and **Gateway** must match your own LAN. When `Work Mode` is `TCP Server`, the `Destination IP/DNS` and `Destination Port` fields are not used by this integration.
+
+Generic communication defaults used by the integration:
 
 | Setting | Value |
 | --- | --- |
