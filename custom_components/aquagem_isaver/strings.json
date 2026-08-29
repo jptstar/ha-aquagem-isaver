@@ -64,10 +64,11 @@
         "state_attributes": {
           "preset_mode": {
             "state": {
-              "night": "Night",
-              "eco": "Eco",
+              "max": "Max",
               "day": "Day",
-              "max": "Max"
+              "eco": "Eco",
+              "night": "Night",
+              "custom": "Custom"
             }
           }
         }
