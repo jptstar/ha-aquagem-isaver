@@ -7,7 +7,7 @@
 <p align="center">RS485 · Local polling · No cloud</p>
 
 <p align="center">
-  <a href="https://github.com/jptstar/ha-aquagem-isaver"><img alt="Version" src="https://img.shields.io/badge/version-0.2.5-blue"></a>
+  <a href="https://github.com/jptstar/ha-aquagem-isaver"><img alt="Version" src="https://img.shields.io/badge/version-0.2.6-blue"></a>
   <a href="https://github.com/hacs/integration"><img alt="HACS" src="https://img.shields.io/badge/HACS-Custom-41BDF5"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-blue"></a>
 </p>
@@ -38,14 +38,21 @@ The pump is exposed as a Home Assistant **fan entity** so ON/OFF and variable sp
 | ON | Restores the last running speed, constrained to the configured range |
 | Speed | Home Assistant `0–100%`, mapped to the configured RPM range |
 | Max | Configurable RPM profile |
-| Jour | Configurable RPM profile |
+| Day / Jour | Configurable RPM profile |
 | Eco | Configurable RPM profile |
-| Nuit | Configurable RPM profile |
-| Perso | Automatically shown when the current RPM does not match any configured profile |
+| Night / Nuit | Configurable RPM profile |
+| Custom / Perso | Automatically shown when the current RPM does not match any configured profile |
 
-The four profiles are **Home Assistant profiles**, inspired by the previous Node-RED setup. They are not claimed to be native Modbus mode registers. Selecting a profile simply writes its configured RPM value.
+The four speed profiles are **Home Assistant profiles**, inspired by the previous Node-RED setup. They are not claimed to be native Modbus mode registers. Selecting a profile simply writes its configured RPM value.
 
-The displayed profile is determined from the **actual pump speed**. If the measured RPM exactly matches Max, Jour, Eco or Nuit, that profile is shown even when the speed was changed outside Home Assistant. Any other running speed is displayed as **Perso**. Perso has no fixed RPM of its own and selecting it does not change the current speed.
+The displayed profile is determined from the **actual pump speed**. If the measured RPM exactly matches Max, Day, Eco or Night, that profile is shown even when the speed was changed outside Home Assistant. Any other running speed is displayed as **Custom**.
+
+Preset identifiers are language-neutral internally (`max`, `day`, `eco`, `night`, `custom`) and Home Assistant translates their display names automatically:
+
+- English: **Max · Day · Eco · Night · Custom**
+- French: **Max · Jour · Eco · Nuit · Perso**
+
+This keeps automations independent from the Home Assistant interface language. Labels used by version 0.2.5 are also accepted as compatibility aliases when passed directly to the preset service.
 
 ## Options
 
@@ -58,9 +65,9 @@ You can set:
 | Polling interval | `5 s` | 5–300 s |
 | Minimum operating speed | `1200 rpm` | 1200–2900, steps of 100 |
 | Maximum operating speed | `2900 rpm` | 1200–2900, steps of 100 |
-| Nuit profile | `1200 rpm` | inside configured min/max |
+| Night profile | `1200 rpm` | inside configured min/max |
 | Eco profile | `2000 rpm` | inside configured min/max |
-| Jour profile | `2400 rpm` | inside configured min/max |
+| Day profile | `2400 rpm` | inside configured min/max |
 | Max profile | `2900 rpm` | inside configured min/max |
 
 The physical protocol safety limits remain fixed: **never below 1200 rpm and never above 2900 rpm**. The configured minimum must also be lower than the configured maximum.
