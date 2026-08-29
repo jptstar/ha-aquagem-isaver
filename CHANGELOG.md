@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6
+
+- Make pump preset identifiers language-neutral internally: `max`, `day`, `eco`, `night`, `custom`.
+- Add native Home Assistant localization for all preset names.
+- Display **Max · Jour · Eco · Nuit · Perso** in French.
+- Display **Max · Day · Eco · Night · Custom** in English.
+- Keep preset detection based on the actual RPM reported by the iSaver.
+- Accept the 0.2.5 French preset labels as compatibility aliases for existing service calls.
+
 ## 0.2.5
 
 - Remove the **Estimated power** sensor and its RPM-based interpolation model.
