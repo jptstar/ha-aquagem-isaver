@@ -169,10 +169,10 @@ into your Home Assistant `custom_components` directory, then restart Home Assist
 The iSaver must be connected through a **transparent RS485-to-TCP gateway**. The setup below has been validated with a WaveShare gateway.
 
 <p align="center">
-  <img src="docs/images/waveshare_isaver_setup.jpg" width="900" alt="WaveShare RS485-to-TCP settings for Aquagem iSaver">
+  <img src="docs/images/waveshare_isaver_setup.webp" width="900" alt="WaveShare RS485-to-TCP settings for Aquagem iSaver">
 </p>
 
-The screenshot is anonymized. Network-specific fields are hidden, while the actual validated communication settings are preserved.
+The image is a cropped capture of the validated WaveShare configuration.
 
 | WaveShare setting | Required value |
 | --- | --- |
