@@ -172,7 +172,7 @@ The iSaver must be connected through a **transparent RS485-to-TCP gateway**. The
   <img src="docs/images/waveshare_isaver_setup.jpg" width="900" alt="WaveShare RS485-to-TCP settings for Aquagem iSaver">
 </p>
 
-The screenshot is anonymized. The example IP addresses are placeholders, and the destination fields are not used while the gateway operates as a TCP server.
+The screenshot is anonymized. Network-specific fields are hidden, while the actual validated communication settings are preserved.
 
 | WaveShare setting | Required value |
 | --- | --- |
@@ -183,8 +183,13 @@ The screenshot is anonymized. The example IP addresses are placeholders, and the
 | Parity | `None` |
 | Stopbits | `1` |
 | Flow control | `None` |
+| No-Data-Restart | `Disable` |
+| No Data Restart Time | `300 s` |
+| Reconnect-time | `12 s` |
 | Protocol | `None` |
+| Instruction Time out | `0` |
 | Enable Multi-host | `No` |
+| RS485 Conflict Time Gap | `20 ms` |
 
 > **Important:** do not select **Modbus TCP to RTU**. The iSaver uses its own proprietary serial frames and the integration sends those frames directly through the transparent gateway.
 
@@ -223,16 +228,6 @@ AA D0 0B B9 [speed hi] [speed lo] [CRC lo] [CRC hi]
 
 The integration validates the complete C3 response, including its CRC, before updating Home Assistant.
 
-## Brand assets
-
-Home Assistant 2026.3 and newer can load the included integration icon and logo directly from:
-
-```text
-custom_components/aquagem_isaver/brand/
-```
-
-The assets use a transparent background and are inspired by the physical iSaver controller.
-
 ## Validation
 
 The repository includes GitHub Actions for:
@@ -240,10 +235,6 @@ The repository includes GitHub Actions for:
 - Python compilation
 - HACS validation
 - Home Assistant hassfest
-
-## Credits
-
-Protocol behaviour was cross-checked against a working Node-RED setup, the available iSaver RS485 protocol table, and the independent `backuprestore/isaver-isaverx-RS485-modbus` research.
 
 ## Author
 
