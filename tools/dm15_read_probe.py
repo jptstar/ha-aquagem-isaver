@@ -4,12 +4,27 @@
 This utility is intentionally READ ONLY. It sends only Modbus function 0x03
 (Read Holding Registers) through a transparent RS485-to-TCP gateway.
 
-Before running, configure the gateway serial side as:
-    9600 baud, 8 data bits, no parity, 1 stop bit (8N1)
-    transparent TCP server mode (Protocol: None on WaveShare)
+The exact DM15 serial baud rate has not yet been confirmed from a DM15-specific
+protocol document. Start with 9600-8-N-1 because that is documented for a
+closely related Aquagem Modbus protocol. If there is no RS485 response at all,
+change the gateway serial side to 1200-8-N-1 and repeat the exact same test.
 
-Example:
-    python3 tools/dm15_read_probe.py 192.168.1.50
+WaveShare settings for each test:
+    TCP Server / transparent mode
+    Protocol: None
+    8 data bits, no parity, 1 stop bit (8N1)
+    Baud rate: 9600 first, then 1200 only if 9600 gives no response
+
+Examples:
+    # First test: configure the WaveShare for 9600-8-N-1
+    python3 tools/dm15_read_probe.py 192.168.1.50 --baud 9600
+
+    # Fallback test: change the WaveShare to 1200-8-N-1 first
+    python3 tools/dm15_read_probe.py 192.168.1.50 --baud 1200
+
+The --baud option is informational only: this script cannot reconfigure the
+WaveShare serial port. Its purpose is to record which gateway setting was used
+in the console output.
 
 The probe tries both common register-address interpretations around the
 Aquagem-documented 2001..2004 status block:
@@ -110,12 +125,14 @@ def parse_response(response: bytes, unit: int) -> str:
     return f"CRC {'OK' if crc_ok else 'BAD'}; registers: [{values}]"
 
 
-def probe(host: str, port: int, unit: int, timeout: float) -> int:
+def probe(host: str, port: int, unit: int, timeout: float, baud: int) -> int:
     """Run the two read-only probes."""
     print("Aquagem DM15 / InverSmart read-only probe")
     print(f"Gateway: {host}:{port}")
     print(f"Slave: 0x{unit:02X} ({unit})")
-    print("IMPORTANT: gateway serial side must be 9600-8-N-1, transparent mode.\n")
+    print(f"Serial setting being tested: {baud}-8-N-1")
+    print("Gateway mode: transparent TCP server / Protocol None")
+    print("NOTE: --baud does not configure the WaveShare; set it in the gateway UI.\n")
 
     attempts = ((2001, 4), (2000, 4))
     got_any_response = False
@@ -140,9 +157,15 @@ def probe(host: str, port: int, unit: int, timeout: float) -> int:
 
     if not got_any_response:
         print("No RS485 response was received for either read request.")
-        print("Check A/B wiring, 9600-8-N-1, transparent mode, and the slave address.")
+        print("Check A/B wiring, transparent mode, Protocol None and slave address.")
+        if baud == 9600:
+            print("Next step: change the WaveShare serial baud rate to 1200 and rerun:")
+            print(f"  python3 tools/dm15_read_probe.py {host} --port {port} --baud 1200")
+        else:
+            print("Both the wiring/settings and the assumed protocol may need further investigation.")
         return 2
 
+    print("A response was received. Do not send write commands yet.")
     print("Please send the complete console output back for analysis.")
     return 0
 
@@ -160,6 +183,16 @@ def main() -> int:
         help="Modbus slave address, decimal or 0x-prefixed (default: 0xAA)",
     )
     parser.add_argument(
+        "--baud",
+        type=int,
+        choices=(9600, 1200),
+        default=9600,
+        help=(
+            "WaveShare serial baud rate used for this test (informational only; "
+            "default: 9600)"
+        ),
+    )
+    parser.add_argument(
         "--timeout", type=float, default=1.5, help="TCP/read timeout in seconds"
     )
     args = parser.parse_args()
@@ -169,7 +202,7 @@ def main() -> int:
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
 
-    return probe(args.host, args.port, args.unit, args.timeout)
+    return probe(args.host, args.port, args.unit, args.timeout, args.baud)
 
 
 if __name__ == "__main__":
