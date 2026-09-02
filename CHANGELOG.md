@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Add validated **DM15 / INVERsilence** support through standard Modbus RTU at 9600-8-N-1.
 - Add read-only automatic protocol detection with signature and CRC validation.
