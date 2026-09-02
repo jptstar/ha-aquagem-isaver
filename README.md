@@ -1,138 +1,182 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png" width="180" alt="Aquagem iSaver">
+  <img src="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png" width="180" alt="Aquagem Pump Home Assistant integration">
 </p>
 
-<h1 align="center">Aquagem iSaver — Home Assistant</h1>
-<p align="center"><strong>Local control and diagnostics for the iSaver Power pool pump inverter.</strong></p>
+<h1 align="center">Aquagem Pumps — Home Assistant</h1>
+<p align="center"><strong>Local control and diagnostics for compatible Aquagem variable-speed pool pumps.</strong></p>
 <p align="center">RS485 · Local polling · No cloud</p>
 
 <p align="center">
-  <a href="https://github.com/jptstar/ha-aquagem-isaver"><img alt="Version" src="https://img.shields.io/badge/version-0.2.7-blue"></a>
+  <a href="https://github.com/jptstar/ha-aquagem-isaver/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/jptstar/ha-aquagem-isaver"></a>
   <a href="https://github.com/hacs/integration"><img alt="HACS" src="https://img.shields.io/badge/HACS-Custom-41BDF5"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-blue"></a>
 </p>
 
-> **Unofficial personal project.** Built for fun around a real Aquagem iSaver Power 1100. This project is not affiliated with, endorsed by, or maintained by Aquagem. Product names and trademarks belong to their respective owners.
+---
 
-## What it does
+## Compatibility
 
-The integration talks directly to the proprietary iSaver RS485 protocol through a transparent RS485-to-TCP gateway.
+The integration is structured around the **detected local protocol**, not only the commercial model name.
 
-One C3 status read returns:
+| Protocol profile | Validated hardware | RS485 serial | Control | Status |
+|---|---|---|---|:---:|
+| **C3 / D0** | **iSaver Power 1100** | `1200-8-N-1` | RPM `1200–2900`, OFF=`1` | ✅ Validated |
+| **Modbus 03 / 10** | **DM15 / INVERsilence** | `9600-8-N-1` | Capacity `30–100%`, OFF=`0` | ✅ Validated |
 
-- register `2001`: fault bitfield
-- register `2002`: real pump running state
-- register `2003`: actual pump speed
+> [!TIP]
+> **Not listed does not necessarily mean unsupported.** Automatic detection validates protocol signatures. Compatible Aquagem pumps using the same standard Modbus register layout may work even when their commercial model name is not yet listed.
 
-Speed commands are written to register `3001`.
+The DM15 field validation confirmed, on real hardware:
 
-No MQTT, Node-RED or cloud service is required once the integration is installed.
+- slave address `0xAA`
+- function `0x03` reads holding registers `2001..2004`
+- register `2003` follows the physical running capacity
+- function `0x10` writes register `3001`
+- commands `30%`, `50%`, `70%` and `100%`
+- `3001 = 0` stops the pump
+- valid write acknowledgements and CRCs throughout the test sequence
 
-## Main control
+The Modbus register stores an integer capacity from `30` to `100`, so the integration exposes a **1% control grid**. The independently field-tested checkpoints are currently 30/50/70/100%.
 
-The pump is exposed as a Home Assistant **fan entity** so ON/OFF and variable speed are available from one control.
+---
+
+## At a glance
+
+| | What the integration exposes |
+|---|---|
+| 🎛️ **Main control** | Home Assistant `fan` entity with ON/OFF and variable speed |
+| 📈 **Live value** | iSaver actual RPM or Modbus pump running capacity (%) |
+| 🎯 **Direct setpoint** | RPM setpoint for iSaver · capacity setpoint for Modbus pumps |
+| 🚨 **Diagnostics** | Global alarm, raw fault word and protocol-specific fault bits |
+| 🔌 **Connection** | Local RS485/TCP gateway health |
+| ☁️ **Cloud** | Not required |
+
+No MQTT or Node-RED is required once the integration is installed.
+
+---
+
+## Automatic protocol detection
+
+**Automatic detection is the normal setup path.** The user enters only the device name, gateway IP address and TCP port.
+
+Detection sends **read-only probes only**:
+
+1. validate the proprietary iSaver C3 response signature and CRC;
+2. validate the standard Aquagem pump Modbus `03` response for registers `2001..2004`;
+3. try Modbus address `0xAA` first;
+4. if required, scan the configurable Aquagem Modbus range `0xA0..0xBF`;
+5. accept a profile only when the response structure, CRC, state and running-capacity values are coherent.
+
+A generic Modbus reply is **not enough** to identify an Aquagem pump.
+
+Once identified, the protocol and Modbus address are stored in the Home Assistant config entry. Normal polling then uses only that profile; auto-detection is not repeated every cycle.
+
+### Manual fallback
+
+If automatic signature detection fails, Home Assistant offers a manual fallback:
+
+- **iSaver Power 1100 — C3/D0**
+- **DM15 / Aquagem Modbus pump — 03/10**
+
+The forced profile is still validated with a **read-only request before saving**.
+
+> [!IMPORTANT]
+> Home Assistant cannot change the WaveShare's RS485 baud rate through a transparent TCP connection. Set the gateway serial side correctly before retrying detection:
+>
+> - iSaver C3/D0 → **1200 baud**
+> - DM15 / standard Aquagem pump Modbus → **9600 baud**
+
+---
+
+## Home Assistant fan control
+
+Both supported protocol families use the same Home Assistant **fan entity** so the user gets one familiar variable-speed pump control.
+
+### iSaver Power 1100
 
 | Control | Behaviour |
-| --- | --- |
-| OFF | Sends the validated iSaver stop value `1` |
-| ON | Restores the last running speed, constrained to the configured range |
-| Speed | Home Assistant `0–100%`, mapped to the configured RPM range |
-| Max | Configurable RPM profile |
-| Day / Jour | Configurable RPM profile |
-| Eco | Configurable RPM profile |
-| Night / Nuit | Configurable RPM profile |
-| Custom / Perso | Automatically shown when the current RPM does not match any configured profile |
+|---|---|
+| OFF | validated persistent command value `1` |
+| ON | restores the last running RPM |
+| Fan speed | HA 0–100% mapped to the configured RPM range |
+| Physical range | `1200–2900 rpm` |
+| RPM grid | `100 rpm` |
+| Profiles | Max · Day/Jour · Eco · Night/Nuit · Custom/Perso |
 
-The four speed profiles are **Home Assistant profiles**, inspired by the previous Node-RED setup. They are not claimed to be native Modbus mode registers. Selecting a profile simply writes its configured RPM value.
+The profiles are Home Assistant RPM shortcuts; they are not claimed to be native iSaver panel modes.
 
-The displayed profile is determined from the **actual pump speed**. If the measured RPM exactly matches Max, Day, Eco or Night, that profile is shown even when the speed was changed outside Home Assistant. Any other running speed is displayed as **Custom**.
+### DM15 / standard Aquagem pump Modbus
 
-Preset identifiers are language-neutral internally (`max`, `day`, `eco`, `night`, `custom`) and Home Assistant translates their display names automatically:
+| Control | Behaviour |
+|---|---|
+| OFF | writes `3001 = 0` |
+| ON | restores the last running capacity |
+| Fan speed | uses the pump's real running-capacity percentage |
+| Physical range | `30–100%` |
+| Control grid | `1%` integer register resolution |
+| Profiles | none; the native percentage is exposed directly |
 
-- English: **Max · Day · Eco · Night · Custom**
-- French: **Max · Jour · Eco · Nuit · Perso**
+Values below 30% requested through the generic HA fan slider are clamped to the documented physical minimum of 30%. `0%` means OFF.
 
-This keeps automations independent from the Home Assistant interface language. Labels used by version 0.2.5 are also accepted as compatibility aliases when passed directly to the preset service.
+On the validated DM15, acceleration to 100% can take more than three seconds. Register `2003` reports the actual current capacity during that ramp, so a transitional value such as 95% is normal before the pump reaches 100%.
 
-## Options
-
-Open **Settings → Devices & services → Aquagem iSaver → Configure**.
-
-You can set:
-
-| Option | Default | Limits |
-| --- | ---: | --- |
-| Polling interval | `5 s` | 5–300 s |
-| Minimum operating speed | `1200 rpm` | 1200–2900, steps of 100 |
-| Maximum operating speed | `2900 rpm` | 1200–2900, steps of 100 |
-| Night profile | `1200 rpm` | inside configured min/max |
-| Eco profile | `2000 rpm` | inside configured min/max |
-| Day profile | `2400 rpm` | inside configured min/max |
-| Max profile | `2900 rpm` | inside configured min/max |
-
-The physical protocol safety limits remain fixed: **never below 1200 rpm and never above 2900 rpm**. The configured minimum must also be lower than the configured maximum.
-
-## Reconfigure device
-
-Existing devices can be reconfigured without removing and recreating the integration.
-
-Open the Aquagem iSaver integration entry and choose **Reconfigure**. You can change:
-
-- device name
-- RS485/TCP gateway IP address
-- TCP port
-
-Home Assistant tests the new connection before saving and automatically reloads the integration after a successful change. Existing entity identities are preserved.
+---
 
 ## Entities
 
-| Entity | Type | Source / role |
-| --- | --- | --- |
-| Pump | Fan | ON/OFF, 0–100% speed and profiles |
-| RPM setpoint | Number | Direct RPM command within configured limits |
-| Actual speed | Sensor | `2003` |
-| Alarm | Binary sensor | `2001 != 0` |
-| RS485 communication error | Binary sensor | `2001 bit 4` |
-| High temperature speed reduction | Binary sensor | `2001 bit 5` |
-| Keypad communication error | Binary sensor | `2001 bit 6` |
-| Keypad EEPROM error | Binary sensor | `2001 bit 7` |
-| RTC clock error | Binary sensor | `2001 bit 8` |
-| Main board EEPROM error | Binary sensor | `2001 bit 9` |
-| Current detection circuit fault | Binary sensor | `2001 bit 10` |
-| Main drive fault | Binary sensor | `2001 bit 11` |
-| Heatsink sensor fault | Binary sensor | `2001 bit 12` |
-| Heatsink overheat | Binary sensor | `2001 bit 13` |
-| Overcurrent | Binary sensor | `2001 bit 14` |
-| Abnormal input voltage | Binary sensor | `2001 bit 15` |
-| Raw fault code | Sensor | `2001` |
-| Connection | Binary sensor | Coordinator status |
+Common entities:
 
-Fault and connection entities are grouped as Home Assistant diagnostics.
+| Entity | Type | Role |
+|---|---|---|
+| Pump | Fan | ON/OFF and variable-speed control |
+| Alarm | Binary sensor | complete fault word != 0 |
+| Raw fault code | Sensor | protocol fault word |
+| Connection | Binary sensor | coordinator/gateway communication |
 
-## Upgrade note: switch → fan
+Protocol-specific entities:
 
-Starting with 0.2.1, the old pump `switch` is replaced by the variable-speed `fan` entity. The integration removes the obsolete switch registry entry during setup so it does not remain as an unavailable entity.
+| Profile | Entity | Source / unit |
+|---|---|---|
+| iSaver C3/D0 | Actual speed | status field / rpm |
+| iSaver C3/D0 | RPM setpoint | direct RPM command |
+| iSaver C3/D0 | documented iSaver fault bits | diagnostic binary sensors |
+| Modbus 03/10 | Running capacity | register `2003` / % |
+| Modbus 03/10 | Capacity setpoint | register `3001` / % |
+| Modbus 03/10 | 16 documented fault bits | register `2001` |
+| Modbus 03/10 | Register 2004 (raw) | diagnostic, disabled by default |
 
-Automations that explicitly target the former `switch` entity must be updated to the new `fan` entity.
+Register `2004` is intentionally left **raw** because its unit has not yet been independently established. The integration does not assign an estimated meaning to it.
 
-## About the built-in iSaver modes
+Entity display names are localized in English and French. Internal unique IDs remain language-neutral so changing the Home Assistant interface language does not break automations.
 
-The iSaver panel has its own stored speed modes. They are **not exposed as documented Modbus preset registers** by the available protocol table.
+---
 
-The Home Assistant profiles in this integration are therefore configurable RPM shortcuts and remain distinct from the panel's internal/manual state.
+## Device naming
 
-The inverter can still retain or return to its own local/manual state depending on its internal priority logic.
+The Home Assistant integration entry includes the gateway IP address, for example:
 
-## Important: OFF is sent as value `1`
+```text
+iSaver Power 1100 10.89.10.29
+DM15 Pool 192.168.13.181
+```
 
-The protocol sheet lists `0` as OFF for register `3001`, but the same material also contains an explicit `OFF = 1` note.
+The device itself keeps the clean user-defined name. This makes multiple pumps/gateways easy to distinguish without adding the IP address to every entity name.
 
-On the tested iSaver Power 1100:
+---
 
-- `1` gives a persistent RS485 stop
-- `0` can be transient and the inverter may resume its previously stored speed
+## Options
 
-Independent iSaver RS485 implementations use the same `1 rpm` stop command. For that reason this integration intentionally writes **`1` for OFF**.
+Open **Settings → Devices & services → Aquagem Pump → Configure**.
+
+All profiles expose:
+
+| Option | Default | Limits |
+|---|---:|---|
+| Polling interval | `5 s` | 5–300 s |
+
+The iSaver C3/D0 profile additionally exposes configurable RPM limits and Max/Day/Eco/Night Home Assistant shortcuts. Standard Modbus percentage pumps use their native fixed `30–100%` operating range directly.
+
+---
 
 ## Installation
 
@@ -140,19 +184,11 @@ Independent iSaver RS485 implementations use the same `1 rpm` stop command. For 
 
 <p align="center">
   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=jptstar&repository=ha-aquagem-isaver&category=integration">
-    <img alt="Add Aquagem iSaver to HACS" src="https://my.home-assistant.io/badges/hacs_repository.svg">
+    <img alt="Add Aquagem Pump to HACS" src="https://my.home-assistant.io/badges/hacs_repository.svg">
   </a>
 </p>
 
-Or add the repository manually:
-
-1. Open HACS.
-2. Open **Custom repositories**.
-3. Add `jptstar/ha-aquagem-isaver`.
-4. Select **Integration**.
-5. Install **Aquagem iSaver**.
-6. Restart Home Assistant.
-7. Go to **Settings → Devices & services → Add integration → Aquagem iSaver**.
+Or add `jptstar/ha-aquagem-isaver` as **HACS → Custom repositories → Integration**, install the integration, restart Home Assistant, then add **Aquagem Pump** from **Settings → Devices & services**.
 
 ### Manual
 
@@ -162,86 +198,147 @@ Copy:
 custom_components/aquagem_isaver
 ```
 
-into your Home Assistant `custom_components` directory, then restart Home Assistant.
+into the Home Assistant `custom_components` directory, then restart Home Assistant.
 
-## WaveShare gateway setup
+---
 
-The iSaver must be connected through a **transparent RS485-to-TCP gateway**. The setup below has been validated with a WaveShare gateway.
+## RS485/TCP gateway setup
+
+Use a **transparent RS485-to-TCP gateway**.
+
+Common WaveShare settings:
+
+| WaveShare setting | Required value |
+|---|---|
+| Work Mode | `TCP Server` |
+| Device Port | `502` |
+| Databits | `8` |
+| Parity | `None` |
+| Stopbits | `1` |
+| Flow control | `None` |
+| Protocol | `None` |
+| Enable Multi-host | `No` |
+
+Serial baud rate depends on the detected pump protocol:
+
+| Protocol | Baud |
+|---|---:|
+| iSaver C3/D0 | `1200` |
+| Aquagem pump Modbus 03/10 | `9600` |
+
+> [!IMPORTANT]
+> Keep the WaveShare in transparent mode with **Protocol None**. Do not enable the gateway's **Modbus TCP to RTU** conversion mode; the integration sends complete RTU frames through the transparent TCP stream.
+
+### Validated iSaver WaveShare example
 
 <p align="center">
   <img src="docs/images/waveshare_isaver_setup.webp" width="900" alt="WaveShare RS485-to-TCP settings for Aquagem iSaver">
 </p>
 
-The image is a cropped capture of the validated WaveShare configuration.
+The image is a cropped capture of the validated iSaver configuration. Network addresses are installation-specific.
 
-| WaveShare setting | Required value |
-| --- | --- |
-| Work Mode | `TCP Server` |
-| Device Port | `502` |
-| Baud Rate | `1200` |
-| Databits | `8` |
-| Parity | `None` |
-| Stopbits | `1` |
-| Flow control | `None` |
-| No-Data-Restart | `Disable` |
-| No Data Restart Time | `300 s` |
-| Reconnect-time | `12 s` |
-| Protocol | `None` |
-| Instruction Time out | `0` |
-| Enable Multi-host | `No` |
-| RS485 Conflict Time Gap | `20 ms` |
+---
 
-> **Important:** do not select **Modbus TCP to RTU**. The iSaver uses its own proprietary serial frames and the integration sends those frames directly through the transparent gateway.
+## Protocol reference
 
-The gateway's **Device IP**, **Subnet Mask** and **Gateway** must match your own LAN. When `Work Mode` is `TCP Server`, the `Destination IP/DNS` and `Destination Port` fields are not used by this integration.
+### iSaver Power 1100 — proprietary C3/D0
 
-Generic communication defaults used by the integration:
-
-| Setting | Value |
-| --- | --- |
-| TCP port | `502` |
-| Gateway mode | Transparent TCP / RTU buffered |
-| iSaver serial format | `1200-8-N-1` |
-| iSaver address | `0xAA` |
-| Polling interval | `5 s` |
-| TCP timeout | `5 s` |
-
-## Protocol
-
-Validated request:
+Validated status request:
 
 ```text
 AA C3 07 D1 00 02 8C 8C
 ```
 
-The 9-byte response is decoded as:
+Response:
 
 ```text
 AA C3 [fault hi] [fault lo] [state] [speed hi] [speed lo] [CRC lo] [CRC hi]
 ```
 
-Write prefix:
+Speed write prefix:
 
 ```text
 AA D0 0B B9 [speed hi] [speed lo] [CRC lo] [CRC hi]
 ```
 
-The integration validates the complete C3 response, including its CRC, before updating Home Assistant.
+For the validated iSaver Power 1100, **OFF intentionally uses value `1`** because it gives the persistent RS485 stop behaviour observed on the real unit.
 
-## Validation
+### DM15 / Aquagem standard pump Modbus
 
-The repository includes GitHub Actions for:
+Validated read:
 
-- Python compilation
-- HACS validation
-- Home Assistant hassfest
+```text
+slave 0xAA
+function 0x03
+start 2001
+count 4
+```
 
-## Author
+Registers:
 
-**JP — [@jptstar](https://github.com/jptstar)**
+| Register | Validated interpretation |
+|---:|---|
+| `2001` | fault bitfield |
+| `2002` | operating state (`0` OFF, `1` ON) |
+| `2003` | actual running capacity (%) |
+| `2004` | live raw value; unit intentionally unassigned |
 
-Personal Home Assistant project, built for fun.
+Validated write:
+
+```text
+function 0x10
+register 3001
+0      = OFF
+30..100 = running capacity (%)
+```
+
+The integration validates complete RTU CRCs and write acknowledgements.
+
+---
+
+## Hardware validation tools
+
+Two standalone tools are kept for protocol validation and troubleshooting:
+
+- [`tools/dm15_read_probe.py`](tools/dm15_read_probe.py) — strictly read-only DM15 probe
+- [`tools/dm15_full_probe.py`](tools/dm15_full_probe.py) — interactive full validation including guarded speed and OFF write tests
+
+The full probe requires explicit confirmations before writes and asks the tester to remain physically next to the pump with manual or electrical control available.
+
+---
+
+## Validation policy
+
+Protocol support is marked as validated only after repeatable checks on real hardware.
+
+Automatic detection relies on a complete protocol signature — frame structure, CRC and plausible register/state values — rather than accepting any TCP connection or generic Modbus response.
+
+Values whose meaning or unit has not been independently established remain explicitly raw or experimental.
+
+---
+
+## Contributions & credits
+
+Aquagem Pump benefits from independent real-hardware testing. Credits are intentionally specific and describe only the contribution that directly helped validate the integration.
+
+- **Antonio Garcia** — independent **DM15 / INVERsilence** hardware validation. Antonio tested the read-only register map and then completed the guarded Modbus write sequence on his real pump, confirming `9600-8-N-1`, registers `2001..2004`, running-capacity feedback through `2003`, `3001` commands at 30/50/70/100%, valid function `0x10` acknowledgements, and the final `3001 = 0` OFF command.
+
+Thanks also to everyone who shares diagnostics, device variants, protocol captures, bug reports and real-hardware test results. Concrete compatibility or protocol validation can be credited here for the specific work it established.
+
+---
+
+## Project
+
+> [!IMPORTANT]
+> **Unofficial community project.** Aquagem Pump is independent and is not developed, approved, endorsed or maintained by Aquagem.
+
+Created and maintained by **Jean-Philippe TESTART · `jptstar`**  
+*Developed and shared for fun, technical curiosity and the Home Assistant community.*
+
+---
 
 ## License
 
-MIT
+Copyright © 2026 Jean-Philippe TESTART (`jptstar`).
+
+Distributed under the **MIT License**. See [LICENSE](LICENSE).
