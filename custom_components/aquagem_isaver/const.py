@@ -1,4 +1,4 @@
-"""Constants for Aquagem pump integrations."""
+"""Constants for supported Aquagem pump protocols."""
 
 DOMAIN = "aquagem_isaver"
 PLATFORMS = ["sensor", "number", "fan", "binary_sensor"]
@@ -11,13 +11,18 @@ CONF_ECO_SPEED = "eco_speed"
 CONF_DAY_SPEED = "day_speed"
 CONF_MAX_PRESET_SPEED = "max_preset_speed"
 CONF_PROTOCOL = "protocol"
+CONF_MODBUS_UNIT = "modbus_unit"
 
-DEFAULT_NAME = "iSaver Power 1100"
+DEFAULT_NAME = "Aquagem Pump"
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
 
+# Protocol identifiers are intentionally model-independent where possible.
+# Auto-detection validates protocol signatures; it does not guess a commercial
+# model name from a generic Modbus response.
 PROTOCOL_ISAVER = "isaver_c3_d0"
-PROTOCOL_DM15 = "dm15_modbus"
+PROTOCOL_PUMP_MODBUS = "pump_modbus_03_10"
+SUPPORTED_PROTOCOLS = (PROTOCOL_ISAVER, PROTOCOL_PUMP_MODBUS)
 
 # iSaver Power 1100 proprietary C3/D0 profile.
 MIN_SPEED = 1200
@@ -39,7 +44,7 @@ PRESET_ECO = "eco"
 PRESET_NIGHT = "night"
 PRESET_CUSTOM = "custom"
 
-DEVICE_ADDRESS = 0xAA
+ISAVER_DEVICE_ADDRESS = 0xAA
 READ_FUNCTION = 0xC3
 WRITE_FUNCTION = 0xD0
 
@@ -48,18 +53,21 @@ WRITE_FUNCTION = 0xD0
 #   2001 (2 bytes): fault bitfield
 #   2002 (1 byte): operating state, bit 0 = pump on
 #   2003 (2 bytes): actual pump speed in rpm
-READ_STATUS_BODY = bytes((DEVICE_ADDRESS, READ_FUNCTION, 0x07, 0xD1, 0x00, 0x02))
-WRITE_SPEED_PREFIX = bytes((DEVICE_ADDRESS, WRITE_FUNCTION, 0x0B, 0xB9))
+READ_STATUS_BODY = bytes((ISAVER_DEVICE_ADDRESS, READ_FUNCTION, 0x07, 0xD1, 0x00, 0x02))
+WRITE_SPEED_PREFIX = bytes((ISAVER_DEVICE_ADDRESS, WRITE_FUNCTION, 0x0B, 0xB9))
 READ_STATUS_REPLY_LENGTH = 9
 
-# DM15 / INVERsilence standard Modbus RTU profile, validated on real hardware.
-DM15_READ_FUNCTION = 0x03
-DM15_WRITE_FUNCTION = 0x10
-DM15_STATUS_START = 2001
-DM15_STATUS_COUNT = 4
-DM15_COMMAND_REGISTER = 3001
-DM15_STATUS_REPLY_LENGTH = 13
-DM15_OFF_COMMAND = 0
-DM15_MIN_CAPACITY = 30
-DM15_MAX_CAPACITY = 100
-DM15_CAPACITY_STEP = 1
+# Standard Aquagem pump Modbus profile validated on a real DM15 / INVERsilence.
+PUMP_MODBUS_READ_FUNCTION = 0x03
+PUMP_MODBUS_WRITE_FUNCTION = 0x10
+PUMP_MODBUS_STATUS_START = 2001
+PUMP_MODBUS_STATUS_COUNT = 4
+PUMP_MODBUS_COMMAND_REGISTER = 3001
+PUMP_MODBUS_STATUS_REPLY_LENGTH = 13
+PUMP_MODBUS_OFF_COMMAND = 0
+PUMP_MODBUS_MIN_CAPACITY = 30
+PUMP_MODBUS_MAX_CAPACITY = 100
+PUMP_MODBUS_CAPACITY_STEP = 1
+PUMP_MODBUS_DEFAULT_UNIT = 0xAA
+PUMP_MODBUS_UNIT_MIN = 0xA0
+PUMP_MODBUS_UNIT_MAX = 0xBF
