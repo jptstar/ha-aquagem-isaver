@@ -1,6 +1,6 @@
 {
   "domain": "aquagem_isaver",
-  "name": "Aquagem iSaver",
+  "name": "Aquagem Pump",
   "codeowners": ["@jptstar"],
   "config_flow": true,
   "documentation": "https://github.com/jptstar/ha-aquagem-isaver",
