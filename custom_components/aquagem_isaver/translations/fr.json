@@ -2,37 +2,47 @@
   "config": {
     "step": {
       "user": {
-        "title": "Aquagem iSaver",
-        "description": "Connexion locale à l'iSaver via une passerelle RS485/TCP. Pour une passerelle WaveShare, utilisez TCP Server, port 502, 1200 bauds, 8N1, Flow control None, Protocol None et Multi-host désactivé. N'utilisez pas le mode Modbus TCP to RTU.",
+        "title": "Pompe Aquagem",
+        "description": "Connexion via une passerelle RS485/TCP transparente. La détection du protocole est automatique et en lecture seule. WaveShare : TCP Server, port 502, 8N1, Protocol None. Utilisez 1200 bauds pour iSaver C3/D0 ou 9600 bauds pour DM15 / Modbus standard des pompes Aquagem.",
         "data": {
-          "name": "Nom",
+          "name": "Nom de l'appareil",
           "host": "Adresse IP",
           "port": "Port TCP"
         }
       },
-      "reconfigure": {
-        "title": "Reconfigurer Aquagem iSaver",
-        "description": "Modifiez le nom de l'appareil ou la connexion à la passerelle RS485/TCP. La connexion est testée avant l'enregistrement. La passerelle doit rester en mode transparent : TCP Server, 1200 bauds, 8N1 et Protocol None.",
+      "manual": {
+        "title": "Sélection manuelle du protocole",
+        "description": "La détection automatique par signature n'a pas identifié la pompe. Sélectionnez un profil connu après avoir vérifié la vitesse série du WaveShare. Cette validation reste en lecture seule.",
         "data": {
-          "name": "Nom",
+          "protocol": "Profil de pompe",
+          "modbus_unit": "Adresse Modbus (160–191 / 0xA0–0xBF)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer la pompe Aquagem",
+        "description": "Modifiez le nom de l'appareil ou la connexion à la passerelle RS485/TCP. Le protocole mémorisé est validé avant l'enregistrement.",
+        "data": {
+          "name": "Nom de l'appareil",
           "host": "Adresse IP",
           "port": "Port TCP"
         }
       }
     },
     "error": {
-      "cannot_connect": "Impossible d'ouvrir la connexion TCP vers la passerelle.",
-      "endpoint_in_use": "Cette adresse IP et ce port TCP sont déjà utilisés par une autre entrée Aquagem iSaver."
+      "cannot_connect": "Impossible de communiquer avec la passerelle ou la pompe configurée.",
+      "cannot_validate_manual": "Le profil sélectionné n'a pas renvoyé la signature attendue en lecture seule. Vérifiez la vitesse série du WaveShare, le câblage RS485 et l'adresse Modbus.",
+      "endpoint_in_use": "Cette adresse IP et ce port TCP sont déjà utilisés par une autre entrée Pompe Aquagem."
     },
     "abort": {
-      "already_configured": "Cette passerelle est déjà configurée."
+      "already_configured": "Cette passerelle est déjà configurée.",
+      "manual_without_gateway": "La sélection manuelle du protocole nécessite d'abord les informations de la passerelle."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Options iSaver",
-        "description": "Réglez l'intervalle d'actualisation, la plage de fonctionnement et les profils de vitesse Home Assistant. Les vitesses sont limitées à 1200–2900 tr/min par pas de 100 tr/min.",
+        "title": "Options Pompe Aquagem",
+        "description": "Réglez l'intervalle d'actualisation. Les appareils iSaver C3/D0 proposent aussi les limites RPM et les profils de vitesse Home Assistant.",
         "data": {
           "scan_interval": "Intervalle d'actualisation (secondes)",
           "min_operating_speed": "Vitesse minimale",
@@ -53,10 +63,13 @@
   "entity": {
     "sensor": {
       "speed": {"name": "Vitesse réelle"},
-      "fault_code": {"name": "Code défaut brut"}
+      "capacity": {"name": "Capacité de fonctionnement"},
+      "fault_code": {"name": "Code défaut brut"},
+      "raw_2004": {"name": "Registre 2004 (brut)"}
     },
     "number": {
-      "speed_command": {"name": "Consigne RPM"}
+      "speed_command": {"name": "Consigne RPM"},
+      "capacity_command": {"name": "Consigne de capacité"}
     },
     "fan": {
       "pump": {
@@ -88,7 +101,23 @@
       "heatsink_sensor_error": {"name": "Défaut capteur dissipateur"},
       "heatsink_overheat": {"name": "Surchauffe dissipateur"},
       "overcurrent": {"name": "Surintensité"},
-      "input_voltage_error": {"name": "Tension d'entrée anormale"}
+      "input_voltage_error": {"name": "Tension d'entrée anormale"},
+      "modbus_dc_voltage_abnormal": {"name": "Tension CC anormale"},
+      "modbus_ac_current_sampling_error": {"name": "Défaut circuit de mesure du courant CA"},
+      "modbus_phase_loss": {"name": "Protection perte de phase"},
+      "modbus_master_drive_error": {"name": "Défaut variateur principal"},
+      "modbus_heatsink_sensor_error": {"name": "Défaut capteur dissipateur"},
+      "modbus_heatsink_overheat": {"name": "Surchauffe dissipateur"},
+      "modbus_output_current_limit": {"name": "Courant de sortie supérieur à la limite"},
+      "modbus_input_voltage_abnormal": {"name": "Tension d'entrée anormale"},
+      "modbus_no_water": {"name": "Protection manque d'eau"},
+      "modbus_display_comm_error": {"name": "Défaut communication carte d'affichage"},
+      "modbus_display_eeprom_error": {"name": "Défaut lecture EEPROM carte d'affichage"},
+      "modbus_rtc_error": {"name": "Défaut lecture horloge RTC"},
+      "modbus_main_eeprom_error": {"name": "Défaut lecture EEPROM carte principale"},
+      "modbus_motor_current_detection_error": {"name": "Défaut détection courant moteur"},
+      "modbus_motor_power_overload": {"name": "Surcharge puissance moteur"},
+      "modbus_pfc_protection": {"name": "Protection PFC"}
     }
   }
 }
