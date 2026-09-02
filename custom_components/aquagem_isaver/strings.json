@@ -2,37 +2,47 @@
   "config": {
     "step": {
       "user": {
-        "title": "Aquagem iSaver",
-        "description": "Connect locally to the iSaver through an RS485/TCP gateway. For a WaveShare gateway, use TCP Server, port 502, 1200 baud, 8N1, Flow control None, Protocol None and Multi-host disabled. Do not use Modbus TCP to RTU mode.",
+        "title": "Aquagem Pump",
+        "description": "Connect through a transparent RS485/TCP gateway. Protocol detection is automatic and read-only. WaveShare: TCP Server, port 502, 8N1, Protocol None. Use 1200 baud for iSaver C3/D0 or 9600 baud for DM15 / standard Aquagem pump Modbus.",
         "data": {
-          "name": "Name",
+          "name": "Device name",
           "host": "IP address",
           "port": "TCP port"
         }
       },
-      "reconfigure": {
-        "title": "Reconfigure Aquagem iSaver",
-        "description": "Change the device name or RS485/TCP gateway connection. The connection is tested before saving. The gateway must remain in transparent mode: TCP Server, 1200 baud, 8N1 and Protocol None.",
+      "manual": {
+        "title": "Manual protocol fallback",
+        "description": "Automatic signature detection did not identify the pump. Select a known profile only after checking the WaveShare serial baud rate. This validation remains read-only.",
         "data": {
-          "name": "Name",
+          "protocol": "Pump profile",
+          "modbus_unit": "Modbus address (160–191 / 0xA0–0xBF)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Aquagem Pump",
+        "description": "Change the device name or RS485/TCP gateway connection. The stored pump protocol is validated before saving.",
+        "data": {
+          "name": "Device name",
           "host": "IP address",
           "port": "TCP port"
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not open a TCP connection to the gateway.",
-      "endpoint_in_use": "This IP address and TCP port are already used by another Aquagem iSaver entry."
+      "cannot_connect": "Could not communicate with the configured gateway/pump.",
+      "cannot_validate_manual": "The selected profile did not return its expected read-only protocol signature. Check the WaveShare baud rate, RS485 wiring and Modbus address.",
+      "endpoint_in_use": "This IP address and TCP port are already used by another Aquagem Pump entry."
     },
     "abort": {
-      "already_configured": "This gateway is already configured."
+      "already_configured": "This gateway is already configured.",
+      "manual_without_gateway": "Manual protocol selection requires gateway details first."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "iSaver options",
-        "description": "Set the polling interval, operating range and Home Assistant speed profiles. Speeds are limited to 1200–2900 rpm in 100 rpm steps.",
+        "title": "Aquagem Pump options",
+        "description": "Set the polling interval. iSaver C3/D0 devices also expose configurable RPM limits and Home Assistant speed profiles.",
         "data": {
           "scan_interval": "Polling interval (seconds)",
           "min_operating_speed": "Minimum speed",
@@ -53,10 +63,13 @@
   "entity": {
     "sensor": {
       "speed": {"name": "Actual speed"},
-      "fault_code": {"name": "Raw fault code"}
+      "capacity": {"name": "Running capacity"},
+      "fault_code": {"name": "Raw fault code"},
+      "raw_2004": {"name": "Register 2004 (raw)"}
     },
     "number": {
-      "speed_command": {"name": "RPM setpoint"}
+      "speed_command": {"name": "RPM setpoint"},
+      "capacity_command": {"name": "Capacity setpoint"}
     },
     "fan": {
       "pump": {
@@ -88,7 +101,23 @@
       "heatsink_sensor_error": {"name": "Heatsink sensor fault"},
       "heatsink_overheat": {"name": "Heatsink overheat"},
       "overcurrent": {"name": "Overcurrent"},
-      "input_voltage_error": {"name": "Abnormal input voltage"}
+      "input_voltage_error": {"name": "Abnormal input voltage"},
+      "modbus_dc_voltage_abnormal": {"name": "DC voltage abnormal"},
+      "modbus_ac_current_sampling_error": {"name": "AC current sampling circuit failure"},
+      "modbus_phase_loss": {"name": "Phase loss protection"},
+      "modbus_master_drive_error": {"name": "Master drive error"},
+      "modbus_heatsink_sensor_error": {"name": "Heat sink sensor error"},
+      "modbus_heatsink_overheat": {"name": "Heat sink over-temperature"},
+      "modbus_output_current_limit": {"name": "Output current exceeds limit"},
+      "modbus_input_voltage_abnormal": {"name": "Input voltage abnormal"},
+      "modbus_no_water": {"name": "No-water protection"},
+      "modbus_display_comm_error": {"name": "Display board communication failure"},
+      "modbus_display_eeprom_error": {"name": "Display board EEPROM reading failure"},
+      "modbus_rtc_error": {"name": "RTC time reading error"},
+      "modbus_main_eeprom_error": {"name": "Main board EEPROM reading failure"},
+      "modbus_motor_current_detection_error": {"name": "Motor current detection error"},
+      "modbus_motor_power_overload": {"name": "Motor power overload"},
+      "modbus_pfc_protection": {"name": "PFC protection"}
     }
   }
 }
