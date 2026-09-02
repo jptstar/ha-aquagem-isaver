@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://github.com/jptstar/ha-aquagem-isaver/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/jptstar/ha-aquagem-isaver"></a>
   <a href="https://github.com/hacs/integration"><img alt="HACS" src="https://img.shields.io/badge/HACS-Custom-41BDF5"></a>
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-blue"></a>
+  <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/License-GPL--3.0--or--later-blue"></a>
 </p>
 
 ---
@@ -341,4 +341,6 @@ Created and maintained by **Jean-Philippe TESTART · `jptstar`**
 
 Copyright © 2026 Jean-Philippe TESTART (`jptstar`).
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE).
+Distributed under **GNU General Public License v3.0 or later** (`GPL-3.0-or-later`). See [LICENSE](LICENSE).
+
+> Versions through **0.3.0** were published under the MIT License. **0.3.1 and later** are published under GPL-3.0-or-later.
