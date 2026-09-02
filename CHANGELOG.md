@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Change the project license from MIT to **GNU GPL v3.0 or later** (`GPL-3.0-or-later`).
+- Update the README license badge and project licensing notice.
+- Clarify that releases through 0.3.0 remain available under the license terms under which they were published.
+
 ## 0.3.0
 
 - Add validated **DM15 / INVERsilence** support through standard Modbus RTU at 9600-8-N-1.
