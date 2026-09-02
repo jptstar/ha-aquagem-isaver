@@ -1,5 +1,6 @@
 """Shared Aquagem entity."""
 
+from homeassistant.const import CONF_NAME
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -16,7 +17,7 @@ class AquagemEntity(CoordinatorEntity):
         self._entry = entry
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
+            name=entry.data.get(CONF_NAME, entry.title),
             manufacturer="Aquagem",
-            model="iSaver Power 1100",
+            model=coordinator.client.model,
         )
