@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Add validated **DM15 / INVERsilence** support through standard Modbus RTU at 9600-8-N-1.
+- Add read-only automatic protocol detection with signature and CRC validation.
+- Detect standard Aquagem Modbus pumps at address `0xAA` first, then scan the configurable `0xA0..0xBF` range when needed.
+- Keep a manual protocol fallback when automatic detection cannot identify the pump.
+- Store the detected protocol and Modbus address so normal polling does not repeat auto-detection.
+- Expose DM15 / standard Modbus pumps as a Home Assistant `fan` with native 30–100% running-capacity control and `0` for OFF.
+- Add a direct capacity setpoint number entity and actual running-capacity sensor.
+- Add the documented standard Modbus fault bits and keep register `2004` as a disabled-by-default raw diagnostic until its unit is independently established.
+- Preserve iSaver Power 1100 C3/D0 support, RPM control, Home Assistant profiles and the validated persistent OFF value `1`.
+- Include the gateway IP address in the integration entry title while keeping the device name clean.
+- Restructure the README for multi-protocol Aquagem pump support.
+- Add a Contributions & credits section thanking Antonio Garcia for independent DM15 / INVERsilence hardware validation.
+- Update the Project/author section to match the TSUN Local project presentation.
+
 ## 0.2.7
 
 - Add validated WaveShare RS485/TCP gateway setup guidance in English and French.
