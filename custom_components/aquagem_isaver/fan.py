@@ -67,15 +67,15 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
             | FanEntityFeature.TURN_ON
             | FanEntityFeature.TURN_OFF
         )
-        # The configurable Max/Day/Eco/Night RPM shortcuts belong to the
-        # iSaver profile. DM15 exposes its native 30..100% capacity directly.
-        if not self.coordinator.client.is_dm15:
+        # Max/Day/Eco/Night are Home Assistant RPM shortcuts for the iSaver.
+        # Standard Modbus pumps expose their native 30..100% capacity directly.
+        if not self.coordinator.client.is_pump_modbus:
             features |= FanEntityFeature.PRESET_MODE
         return features
 
     @property
     def _minimum_speed(self) -> int:
-        if self.coordinator.client.is_dm15:
+        if self.coordinator.client.is_pump_modbus:
             return self.coordinator.client.minimum_speed
         return self._entry.options.get(
             CONF_MIN_OPERATING_SPEED, DEFAULT_MIN_OPERATING_SPEED
@@ -83,7 +83,7 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     @property
     def _maximum_speed(self) -> int:
-        if self.coordinator.client.is_dm15:
+        if self.coordinator.client.is_pump_modbus:
             return self.coordinator.client.maximum_speed
         return self._entry.options.get(
             CONF_MAX_OPERATING_SPEED, DEFAULT_MAX_OPERATING_SPEED
@@ -95,7 +95,7 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     @property
     def _preset_speeds(self) -> dict[str, int]:
-        if self.coordinator.client.is_dm15:
+        if self.coordinator.client.is_pump_modbus:
             return {}
         options = self._entry.options
         return {
@@ -123,7 +123,8 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
         if not data.pump_on:
             return 0
 
-        if self.coordinator.client.is_dm15:
+        if self.coordinator.client.is_pump_modbus:
+            # Register 2003 is already the physical running-capacity percentage.
             return min(100, max(0, int(data.speed)))
 
         speed = min(self._maximum_speed, max(self._minimum_speed, data.speed))
@@ -133,18 +134,22 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     @property
     def speed_count(self) -> int:
+        if self.coordinator.client.is_pump_modbus:
+            # Keep Home Assistant's slider on a 1% grid. Commands from 1..29%
+            # are safely clamped to the documented 30% physical minimum.
+            return 100
         return ((self._maximum_speed - self._minimum_speed) // self._speed_step) + 1
 
     @property
     def preset_modes(self) -> list[str]:
-        if self.coordinator.client.is_dm15:
+        if self.coordinator.client.is_pump_modbus:
             return []
         return [*self._preset_speeds, PRESET_CUSTOM]
 
     @property
     def preset_mode(self) -> str | None:
         data = self.coordinator.data
-        if self.coordinator.client.is_dm15 or data is None or not data.pump_on:
+        if self.coordinator.client.is_pump_modbus or data is None or not data.pump_on:
             return None
 
         for preset, speed in self._preset_speeds.items():
@@ -158,7 +163,7 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
             await self.coordinator.async_set_speed(self.coordinator.client.off_command)
             return
 
-        if self.coordinator.client.is_dm15:
+        if self.coordinator.client.is_pump_modbus:
             await self.coordinator.async_set_speed(self._normalize_speed(percentage))
             return
 
@@ -169,8 +174,8 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Apply a configurable iSaver Home Assistant speed profile."""
-        if self.coordinator.client.is_dm15:
-            raise ValueError("Preset modes are not used by the DM15 percentage profile")
+        if self.coordinator.client.is_pump_modbus:
+            raise ValueError("Preset modes are not used by percentage-based Modbus pumps")
 
         preset_mode = _LEGACY_PRESET_ALIASES.get(preset_mode, preset_mode)
         if preset_mode == PRESET_CUSTOM:
