@@ -1,4 +1,4 @@
-"""Aquagem iSaver fan-style pump control."""
+"""Aquagem variable-speed pool pump control."""
 
 from __future__ import annotations
 
@@ -24,13 +24,11 @@ from .const import (
     DEFAULT_MIN_OPERATING_SPEED,
     DEFAULT_NIGHT_SPEED,
     DOMAIN,
-    OFF_COMMAND,
     PRESET_CUSTOM,
     PRESET_DAY,
     PRESET_ECO,
     PRESET_MAX,
     PRESET_NIGHT,
-    SPEED_STEP,
 )
 from .entity import AquagemEntity
 
@@ -49,7 +47,7 @@ _LEGACY_PRESET_ALIASES = {
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up the iSaver fan entity."""
+    """Set up the Aquagem pump fan entity."""
     async_add_entities([AquagemPumpFan(hass.data[DOMAIN][entry.entry_id], entry)])
 
 
@@ -57,32 +55,48 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
     """Variable-speed pool pump represented as a Home Assistant fan."""
 
     _attr_translation_key = "pump"
-    _attr_supported_features = (
-        FanEntityFeature.SET_SPEED
-        | FanEntityFeature.PRESET_MODE
-        | FanEntityFeature.TURN_ON
-        | FanEntityFeature.TURN_OFF
-    )
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
-        # Reuse the old pump identity so existing customizations can migrate cleanly.
         self._attr_unique_id = f"{entry.entry_id}_pump"
 
     @property
+    def supported_features(self) -> FanEntityFeature:
+        features = (
+            FanEntityFeature.SET_SPEED
+            | FanEntityFeature.TURN_ON
+            | FanEntityFeature.TURN_OFF
+        )
+        # The configurable Max/Day/Eco/Night RPM shortcuts belong to the
+        # iSaver profile. DM15 exposes its native 30..100% capacity directly.
+        if not self.coordinator.client.is_dm15:
+            features |= FanEntityFeature.PRESET_MODE
+        return features
+
+    @property
     def _minimum_speed(self) -> int:
+        if self.coordinator.client.is_dm15:
+            return self.coordinator.client.minimum_speed
         return self._entry.options.get(
             CONF_MIN_OPERATING_SPEED, DEFAULT_MIN_OPERATING_SPEED
         )
 
     @property
     def _maximum_speed(self) -> int:
+        if self.coordinator.client.is_dm15:
+            return self.coordinator.client.maximum_speed
         return self._entry.options.get(
             CONF_MAX_OPERATING_SPEED, DEFAULT_MAX_OPERATING_SPEED
         )
 
     @property
+    def _speed_step(self) -> int:
+        return self.coordinator.client.speed_step
+
+    @property
     def _preset_speeds(self) -> dict[str, int]:
+        if self.coordinator.client.is_dm15:
+            return {}
         options = self._entry.options
         return {
             PRESET_MAX: options.get(CONF_MAX_PRESET_SPEED, DEFAULT_MAX_PRESET_SPEED),
@@ -92,8 +106,8 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
         }
 
     def _normalize_speed(self, speed: float) -> int:
-        """Clamp a command to configured limits and the 100 rpm control grid."""
-        speed = round(speed / SPEED_STEP) * SPEED_STEP
+        """Clamp a command to the active protocol limits and control grid."""
+        speed = round(speed / self._speed_step) * self._speed_step
         return min(self._maximum_speed, max(self._minimum_speed, int(speed)))
 
     @property
@@ -109,6 +123,9 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
         if not data.pump_on:
             return 0
 
+        if self.coordinator.client.is_dm15:
+            return min(100, max(0, int(data.speed)))
+
         speed = min(self._maximum_speed, max(self._minimum_speed, data.speed))
         return ranged_value_to_percentage(
             (self._minimum_speed, self._maximum_speed), speed
@@ -116,28 +133,33 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     @property
     def speed_count(self) -> int:
-        return ((self._maximum_speed - self._minimum_speed) // SPEED_STEP) + 1
+        return ((self._maximum_speed - self._minimum_speed) // self._speed_step) + 1
 
     @property
     def preset_modes(self) -> list[str]:
+        if self.coordinator.client.is_dm15:
+            return []
         return [*self._preset_speeds, PRESET_CUSTOM]
 
     @property
     def preset_mode(self) -> str | None:
         data = self.coordinator.data
-        if data is None or not data.pump_on:
+        if self.coordinator.client.is_dm15 or data is None or not data.pump_on:
             return None
 
         for preset, speed in self._preset_speeds.items():
             if data.speed == speed:
                 return preset
-
         return PRESET_CUSTOM
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set pump speed from Home Assistant's 0-100% fan control."""
         if percentage <= 0:
-            await self.coordinator.async_set_speed(OFF_COMMAND)
+            await self.coordinator.async_set_speed(self.coordinator.client.off_command)
+            return
+
+        if self.coordinator.client.is_dm15:
+            await self.coordinator.async_set_speed(self._normalize_speed(percentage))
             return
 
         raw_speed = percentage_to_ranged_value(
@@ -146,12 +168,12 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
         await self.coordinator.async_set_speed(self._normalize_speed(raw_speed))
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        """Apply a configurable Home Assistant speed profile."""
-        preset_mode = _LEGACY_PRESET_ALIASES.get(preset_mode, preset_mode)
+        """Apply a configurable iSaver Home Assistant speed profile."""
+        if self.coordinator.client.is_dm15:
+            raise ValueError("Preset modes are not used by the DM15 percentage profile")
 
+        preset_mode = _LEGACY_PRESET_ALIASES.get(preset_mode, preset_mode)
         if preset_mode == PRESET_CUSTOM:
-            # Custom describes any running speed that does not match a preset.
-            # It has no fixed RPM of its own, so selecting it leaves speed unchanged.
             return
 
         try:
@@ -166,7 +188,7 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
         preset_mode: str | None = None,
         **kwargs: Any,
     ) -> None:
-        """Turn on, optionally with a percentage or profile."""
+        """Turn on, optionally with a percentage or iSaver profile."""
         if preset_mode is not None:
             await self.async_set_preset_mode(preset_mode)
             return
@@ -179,5 +201,5 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
         )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn the pump off with the validated value-1 command."""
-        await self.coordinator.async_set_speed(OFF_COMMAND)
+        """Turn the pump off with the command validated for its protocol."""
+        await self.coordinator.async_set_speed(self.coordinator.client.off_command)
