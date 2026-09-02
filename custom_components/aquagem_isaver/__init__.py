@@ -20,6 +20,24 @@ from .coordinator import AquagemCoordinator
 from .protocol import AquagemClient
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate legacy 0.2.x entries to the protocol-aware config format."""
+    if entry.version > 2:
+        return False
+
+    if entry.version < 2:
+        data = dict(entry.data)
+        if CONF_NAME not in data:
+            clean_name = entry.title
+            host = str(data.get(CONF_HOST, ""))
+            if host and clean_name.endswith(f" {host}"):
+                clean_name = clean_name[: -(len(host) + 1)]
+            data[CONF_NAME] = clean_name
+        hass.config_entries.async_update_entry(entry, data=data, version=2)
+
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
     client = AquagemClient(
@@ -32,9 +50,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, client, entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
 
-    # Existing 0.2.x entries do not yet store a protocol. The first successful
-    # refresh detects it read-only; then persist the result so normal polling
-    # never needs to probe multiple profiles again.
+    # Legacy entries do not yet store a protocol. The first successful refresh
+    # detects it read-only; then persist the result so normal polling never
+    # needs to probe multiple profiles again.
     await coordinator.async_refresh()
 
     if coordinator.last_update_success and client.protocol is not None:
