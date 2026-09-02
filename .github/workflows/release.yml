@@ -47,5 +47,5 @@ jobs:
 
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
-            --title "Aquagem iSaver ${VERSION}" \
+            --title "Aquagem Pump ${VERSION}" \
             --generate-notes
