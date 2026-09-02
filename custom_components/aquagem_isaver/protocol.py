@@ -6,26 +6,30 @@ import asyncio
 from dataclasses import dataclass
 
 from .const import (
-    DEVICE_ADDRESS,
-    DM15_CAPACITY_STEP,
-    DM15_COMMAND_REGISTER,
-    DM15_MAX_CAPACITY,
-    DM15_MIN_CAPACITY,
-    DM15_OFF_COMMAND,
-    DM15_READ_FUNCTION,
-    DM15_STATUS_COUNT,
-    DM15_STATUS_REPLY_LENGTH,
-    DM15_STATUS_START,
-    DM15_WRITE_FUNCTION,
+    ISAVER_DEVICE_ADDRESS,
     MAX_SPEED,
     MIN_SPEED,
     OFF_COMMAND,
-    PROTOCOL_DM15,
     PROTOCOL_ISAVER,
+    PROTOCOL_PUMP_MODBUS,
+    PUMP_MODBUS_CAPACITY_STEP,
+    PUMP_MODBUS_COMMAND_REGISTER,
+    PUMP_MODBUS_DEFAULT_UNIT,
+    PUMP_MODBUS_MAX_CAPACITY,
+    PUMP_MODBUS_MIN_CAPACITY,
+    PUMP_MODBUS_OFF_COMMAND,
+    PUMP_MODBUS_READ_FUNCTION,
+    PUMP_MODBUS_STATUS_COUNT,
+    PUMP_MODBUS_STATUS_REPLY_LENGTH,
+    PUMP_MODBUS_STATUS_START,
+    PUMP_MODBUS_UNIT_MAX,
+    PUMP_MODBUS_UNIT_MIN,
+    PUMP_MODBUS_WRITE_FUNCTION,
     READ_FUNCTION,
     READ_STATUS_BODY,
     READ_STATUS_REPLY_LENGTH,
     SPEED_STEP,
+    SUPPORTED_PROTOCOLS,
     WRITE_SPEED_PREFIX,
 )
 
@@ -39,7 +43,7 @@ class AquagemConnectionError(AquagemError):
 
 
 class AquagemProtocolError(AquagemError):
-    """The gateway returned an invalid frame."""
+    """The gateway returned an invalid frame or no known profile matched."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,13 +89,17 @@ def decode_isaver_status(reply: bytes) -> AquagemStatus:
         raise AquagemProtocolError(
             f"Invalid iSaver frame length ({len(reply)} bytes): {reply.hex(' ')}"
         )
-    if reply[0] != DEVICE_ADDRESS or reply[1] != READ_FUNCTION:
+    if reply[0] != ISAVER_DEVICE_ADDRESS or reply[1] != READ_FUNCTION:
         raise AquagemProtocolError(f"Invalid iSaver header: {reply.hex(' ')}")
     _validate_crc(reply)
 
     fault_code = int.from_bytes(reply[2:4], "big")
-    pump_on = bool(reply[4] & 0x01)
+    state = reply[4]
+    pump_on = bool(state & 0x01)
     speed = int.from_bytes(reply[5:7], "big")
+
+    if state & ~0x01:
+        raise AquagemProtocolError(f"Unexpected iSaver state byte: 0x{state:02X}")
     if not 0 <= speed <= MAX_SPEED:
         raise AquagemProtocolError(f"Invalid iSaver speed: {speed} rpm")
 
@@ -103,42 +111,52 @@ def decode_isaver_status(reply: bytes) -> AquagemStatus:
     )
 
 
-def decode_dm15_status(reply: bytes) -> AquagemStatus:
-    """Decode DM15 holding registers 2001..2004."""
-    if len(reply) != DM15_STATUS_REPLY_LENGTH:
+def decode_pump_modbus_status(reply: bytes, unit: int) -> AquagemStatus:
+    """Decode and validate Aquagem pump holding registers 2001..2004."""
+    if len(reply) != PUMP_MODBUS_STATUS_REPLY_LENGTH:
         raise AquagemProtocolError(
-            f"Invalid DM15 frame length ({len(reply)} bytes): {reply.hex(' ')}"
+            f"Invalid Modbus pump frame length ({len(reply)} bytes): {reply.hex(' ')}"
         )
-    if reply[0] != DEVICE_ADDRESS or reply[1] != DM15_READ_FUNCTION:
-        raise AquagemProtocolError(f"Invalid DM15 header: {reply.hex(' ')}")
+    if reply[0] != unit or reply[1] != PUMP_MODBUS_READ_FUNCTION:
+        raise AquagemProtocolError(f"Invalid Modbus pump header: {reply.hex(' ')}")
     _validate_crc(reply)
 
     byte_count = reply[2]
     payload = reply[3:-2]
     if byte_count != 8 or len(payload) != 8:
         raise AquagemProtocolError(
-            f"Invalid DM15 byte count {byte_count}: {reply.hex(' ')}"
+            f"Invalid Modbus pump byte count {byte_count}: {reply.hex(' ')}"
         )
 
-    registers = [
+    fault_code, state, capacity, raw_2004 = (
         int.from_bytes(payload[index : index + 2], "big")
         for index in range(0, len(payload), 2)
-    ]
-    fault_code, state, capacity, raw_2004 = registers
-    if not 0 <= capacity <= DM15_MAX_CAPACITY:
-        raise AquagemProtocolError(f"Invalid DM15 running capacity: {capacity}%")
+    )
+
+    # Signature checks are deliberately stricter than a plain CRC check. They
+    # prevent another Modbus device from being mistaken for an Aquagem pump.
+    if state not in (0, 1):
+        raise AquagemProtocolError(f"Unexpected Modbus pump state: 0x{state:04X}")
+    if state == 0 and capacity != 0:
+        raise AquagemProtocolError(
+            f"Implausible stopped Modbus pump capacity: {capacity}%"
+        )
+    if state == 1 and not PUMP_MODBUS_MIN_CAPACITY <= capacity <= PUMP_MODBUS_MAX_CAPACITY:
+        raise AquagemProtocolError(
+            f"Implausible running Modbus pump capacity: {capacity}%"
+        )
 
     return AquagemStatus(
         fault_code=fault_code,
-        pump_on=bool(state & 0x0001),
+        pump_on=bool(state),
         speed=capacity,
-        protocol=PROTOCOL_DM15,
+        protocol=PROTOCOL_PUMP_MODBUS,
         raw_2004=raw_2004,
     )
 
 
 class AquagemClient:
-    """Small stateless TCP client with Aquagem protocol auto-detection."""
+    """Small stateless TCP client with read-only protocol auto-detection."""
 
     def __init__(
         self,
@@ -146,40 +164,42 @@ class AquagemClient:
         port: int,
         timeout: float = 5.0,
         protocol: str | None = None,
+        modbus_unit: int | None = None,
     ) -> None:
         self.host = host
         self.port = port
         self.timeout = timeout
-        self.protocol = protocol if protocol in (PROTOCOL_ISAVER, PROTOCOL_DM15) else None
+        self.protocol = protocol if protocol in SUPPORTED_PROTOCOLS else None
+        self.modbus_unit = modbus_unit or PUMP_MODBUS_DEFAULT_UNIT
         self._lock = asyncio.Lock()
 
     @property
-    def is_dm15(self) -> bool:
-        return self.protocol == PROTOCOL_DM15
+    def is_pump_modbus(self) -> bool:
+        return self.protocol == PROTOCOL_PUMP_MODBUS
 
     @property
     def minimum_speed(self) -> int:
-        return DM15_MIN_CAPACITY if self.is_dm15 else MIN_SPEED
+        return PUMP_MODBUS_MIN_CAPACITY if self.is_pump_modbus else MIN_SPEED
 
     @property
     def maximum_speed(self) -> int:
-        return DM15_MAX_CAPACITY if self.is_dm15 else MAX_SPEED
+        return PUMP_MODBUS_MAX_CAPACITY if self.is_pump_modbus else MAX_SPEED
 
     @property
     def speed_step(self) -> int:
-        return DM15_CAPACITY_STEP if self.is_dm15 else SPEED_STEP
+        return PUMP_MODBUS_CAPACITY_STEP if self.is_pump_modbus else SPEED_STEP
 
     @property
     def off_command(self) -> int:
-        return DM15_OFF_COMMAND if self.is_dm15 else OFF_COMMAND
+        return PUMP_MODBUS_OFF_COMMAND if self.is_pump_modbus else OFF_COMMAND
 
     @property
     def model(self) -> str:
-        if self.protocol == PROTOCOL_DM15:
-            return "DM15 / INVERsilence"
+        if self.protocol == PROTOCOL_PUMP_MODBUS:
+            return "Aquagem Modbus Pump"
         if self.protocol == PROTOCOL_ISAVER:
             return "iSaver Power 1100"
-        return "Aquagem pump inverter"
+        return "Aquagem Pump"
 
     async def test_connection(self) -> None:
         """Check that the TCP gateway accepts a connection."""
@@ -254,63 +274,95 @@ class AquagemClient:
         )
         return decode_isaver_status(reply)
 
-    async def _read_dm15_status(self, timeout: float | None = None) -> AquagemStatus:
+    async def _read_pump_modbus_status(
+        self,
+        unit: int | None = None,
+        timeout: float | None = None,
+    ) -> AquagemStatus:
+        unit = self.modbus_unit if unit is None else unit
         body = bytes(
             (
-                DEVICE_ADDRESS,
-                DM15_READ_FUNCTION,
-                (DM15_STATUS_START >> 8) & 0xFF,
-                DM15_STATUS_START & 0xFF,
+                unit,
+                PUMP_MODBUS_READ_FUNCTION,
+                (PUMP_MODBUS_STATUS_START >> 8) & 0xFF,
+                PUMP_MODBUS_STATUS_START & 0xFF,
                 0x00,
-                DM15_STATUS_COUNT,
+                PUMP_MODBUS_STATUS_COUNT,
             )
         )
         reply = await self._exchange(
-            frame(body), DM15_STATUS_REPLY_LENGTH, timeout=timeout
+            frame(body), PUMP_MODBUS_STATUS_REPLY_LENGTH, timeout=timeout
         )
-        return decode_dm15_status(reply)
+        return decode_pump_modbus_status(reply, unit)
 
     async def detect_protocol(self) -> AquagemStatus:
-        """Probe both validated profiles without sending any write command."""
-        detection_timeout = min(self.timeout, 1.5)
+        """Detect a supported profile using read-only signature checks."""
         errors: list[str] = []
 
-        for protocol, reader in (
-            (PROTOCOL_ISAVER, self._read_isaver_status),
-            (PROTOCOL_DM15, self._read_dm15_status),
-        ):
+        # Proprietary iSaver signature at its validated fixed address.
+        try:
+            status = await self._read_isaver_status(timeout=min(self.timeout, 0.8))
+        except AquagemError as err:
+            errors.append(f"{PROTOCOL_ISAVER}: {err}")
+        else:
+            self.protocol = PROTOCOL_ISAVER
+            return status
+
+        # Standard Modbus pump signature. 0xAA is the common/default address,
+        # so try it first before scanning the documented configurable A0..BF range.
+        units = [PUMP_MODBUS_DEFAULT_UNIT, *(
+            unit
+            for unit in range(PUMP_MODBUS_UNIT_MIN, PUMP_MODBUS_UNIT_MAX + 1)
+            if unit != PUMP_MODBUS_DEFAULT_UNIT
+        )]
+        for index, unit in enumerate(units):
+            timeout = min(self.timeout, 0.8 if index == 0 else 0.18)
             try:
-                status = await reader(timeout=detection_timeout)
+                status = await self._read_pump_modbus_status(unit, timeout=timeout)
             except AquagemError as err:
-                errors.append(f"{protocol}: {err}")
+                if index == 0:
+                    errors.append(f"{PROTOCOL_PUMP_MODBUS}@0x{unit:02X}: {err}")
                 continue
-            self.protocol = protocol
+            self.protocol = PROTOCOL_PUMP_MODBUS
+            self.modbus_unit = unit
             return status
 
         raise AquagemProtocolError(
-            "No supported Aquagem protocol response received (" + "; ".join(errors) + ")"
+            "No supported Aquagem protocol signature detected (" + "; ".join(errors) + ")"
         )
 
-    async def read_status(self) -> AquagemStatus:
-        """Read the status block using the configured or detected profile."""
+    async def validate_forced_protocol(self) -> AquagemStatus:
+        """Validate a manually selected profile without writing to the pump."""
         if self.protocol == PROTOCOL_ISAVER:
             return await self._read_isaver_status()
-        if self.protocol == PROTOCOL_DM15:
-            return await self._read_dm15_status()
+        if self.protocol == PROTOCOL_PUMP_MODBUS:
+            return await self._read_pump_modbus_status()
+        raise AquagemProtocolError("No protocol selected")
+
+    async def read_status(self) -> AquagemStatus:
+        """Read status using the stored profile, or auto-detect once if needed."""
+        if self.protocol == PROTOCOL_ISAVER:
+            return await self._read_isaver_status()
+        if self.protocol == PROTOCOL_PUMP_MODBUS:
+            return await self._read_pump_modbus_status()
         return await self.detect_protocol()
 
-    async def _write_dm15_capacity(self, capacity: int) -> None:
-        if capacity != DM15_OFF_COMMAND and not DM15_MIN_CAPACITY <= capacity <= DM15_MAX_CAPACITY:
+    async def _write_pump_modbus_capacity(self, capacity: int) -> None:
+        if capacity != PUMP_MODBUS_OFF_COMMAND and not (
+            PUMP_MODBUS_MIN_CAPACITY <= capacity <= PUMP_MODBUS_MAX_CAPACITY
+        ):
             raise ValueError(
-                f"DM15 capacity must be 0 (OFF) or {DM15_MIN_CAPACITY}..{DM15_MAX_CAPACITY}%"
+                f"Modbus pump capacity must be 0 (OFF) or "
+                f"{PUMP_MODBUS_MIN_CAPACITY}..{PUMP_MODBUS_MAX_CAPACITY}%"
             )
 
+        unit = self.modbus_unit
         body = bytes(
             (
-                DEVICE_ADDRESS,
-                DM15_WRITE_FUNCTION,
-                (DM15_COMMAND_REGISTER >> 8) & 0xFF,
-                DM15_COMMAND_REGISTER & 0xFF,
+                unit,
+                PUMP_MODBUS_WRITE_FUNCTION,
+                (PUMP_MODBUS_COMMAND_REGISTER >> 8) & 0xFF,
+                PUMP_MODBUS_COMMAND_REGISTER & 0xFF,
                 0x00,
                 0x01,
                 0x02,
@@ -322,24 +374,26 @@ class AquagemClient:
         _validate_crc(reply)
         expected = bytes(
             (
-                DEVICE_ADDRESS,
-                DM15_WRITE_FUNCTION,
-                (DM15_COMMAND_REGISTER >> 8) & 0xFF,
-                DM15_COMMAND_REGISTER & 0xFF,
+                unit,
+                PUMP_MODBUS_WRITE_FUNCTION,
+                (PUMP_MODBUS_COMMAND_REGISTER >> 8) & 0xFF,
+                PUMP_MODBUS_COMMAND_REGISTER & 0xFF,
                 0x00,
                 0x01,
             )
         )
         if reply[:6] != expected:
-            raise AquagemProtocolError(f"Unexpected DM15 write ACK: {reply.hex(' ')}")
+            raise AquagemProtocolError(
+                f"Unexpected Modbus pump write ACK: {reply.hex(' ')}"
+            )
 
     async def write_speed(self, speed: int) -> None:
         """Write a speed/capacity command using the detected protocol."""
         if self.protocol is None:
             await self.detect_protocol()
 
-        if self.protocol == PROTOCOL_DM15:
-            await self._write_dm15_capacity(speed)
+        if self.protocol == PROTOCOL_PUMP_MODBUS:
+            await self._write_pump_modbus_capacity(speed)
             return
 
         if speed != OFF_COMMAND and not MIN_SPEED <= speed <= MAX_SPEED:
