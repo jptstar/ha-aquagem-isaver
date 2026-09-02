@@ -1,33 +1,70 @@
-"""Aquagem iSaver integration."""
+"""Aquagem variable-speed pump integration."""
 
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, Platform
+from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN, PLATFORMS
+from .const import (
+    CONF_MODBUS_UNIT,
+    CONF_PROTOCOL,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    PLATFORMS,
+    PUMP_MODBUS_DEFAULT_UNIT,
+)
 from .coordinator import AquagemCoordinator
 from .protocol import AquagemClient
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
-    client = AquagemClient(entry.data[CONF_HOST], entry.data[CONF_PORT])
+    client = AquagemClient(
+        entry.data[CONF_HOST],
+        entry.data[CONF_PORT],
+        protocol=entry.data.get(CONF_PROTOCOL),
+        modbus_unit=entry.data.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT),
+    )
     coordinator = AquagemCoordinator(
         hass, client, entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
-    # Do not prevent setup when an RTU-buffered gateway is temporarily silent
-    # or already occupied by another TCP client. The coordinator will retry.
+
+    # Existing 0.2.x entries do not yet store a protocol. The first successful
+    # refresh detects it read-only; then persist the result so normal polling
+    # never needs to probe multiple profiles again.
     await coordinator.async_refresh()
+
+    if coordinator.last_update_success and client.protocol is not None:
+        data = dict(entry.data)
+        changed = False
+
+        if data.get(CONF_PROTOCOL) != client.protocol:
+            data[CONF_PROTOCOL] = client.protocol
+            changed = True
+        if client.is_pump_modbus and data.get(CONF_MODBUS_UNIT) != client.modbus_unit:
+            data[CONF_MODBUS_UNIT] = client.modbus_unit
+            changed = True
+
+        if CONF_NAME not in data:
+            clean_name = entry.title
+            host = str(entry.data[CONF_HOST])
+            if clean_name.endswith(f" {host}"):
+                clean_name = clean_name[: -(len(host) + 1)]
+            data[CONF_NAME] = clean_name
+            changed = True
+
+        title = f"{data[CONF_NAME]} {entry.data[CONF_HOST]}"
+        if changed or entry.title != title:
+            hass.config_entries.async_update_entry(entry, data=data, title=title)
+
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     entity_registry = er.async_get(hass)
 
-    # 0.2.1 replaces the legacy pump switch with a variable-speed fan entity.
-    # Remove the old registry entry so upgrades do not leave an unavailable
-    # switch behind after the platform changes.
+    # 0.2.1 replaced the legacy pump switch with a variable-speed fan entity.
     legacy_switch = entity_registry.async_get_entity_id(
         Platform.SWITCH, DOMAIN, f"{entry.entry_id}_pump"
     )
@@ -35,7 +72,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entity_registry.async_remove(legacy_switch)
 
     # The estimated-power sensor was experimental and is no longer exposed.
-    # Remove its registry entry as well so upgrades do not leave a stale entity.
     estimated_power = entity_registry.async_get_entity_id(
         Platform.SENSOR, DOMAIN, f"{entry.entry_id}_estimated_power"
     )
