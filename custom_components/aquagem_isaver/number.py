@@ -13,7 +13,9 @@ from .entity import AquagemEntity
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([AquagemSpeedNumber(hass.data[DOMAIN][entry.entry_id], entry)])
+    """Set up the direct protocol-native setpoint entity."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([AquagemSpeedNumber(coordinator, entry)])
 
 
 class AquagemSpeedNumber(AquagemEntity, NumberEntity):
@@ -23,15 +25,17 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_speed_command"
 
-        if coordinator.client.is_dm15:
+        if coordinator.client.is_pump_modbus:
+            self._attr_unique_id = f"{entry.entry_id}_capacity_command"
             self._attr_translation_key = "capacity_command"
             self._attr_native_unit_of_measurement = "%"
             self._attr_native_step = coordinator.client.speed_step
             self._attr_native_min_value = coordinator.client.minimum_speed
             self._attr_native_max_value = coordinator.client.maximum_speed
         else:
+            # Preserve the released iSaver identity for existing installations.
+            self._attr_unique_id = f"{entry.entry_id}_speed_command"
             self._attr_translation_key = "speed_command"
             self._attr_native_unit_of_measurement = "rpm"
             self._attr_native_step = coordinator.client.speed_step
