@@ -60,13 +60,19 @@ WRITE_SPEED_PREFIX = bytes((ISAVER_DEVICE_ADDRESS, WRITE_FUNCTION, 0x0B, 0xB9))
 READ_STATUS_REPLY_LENGTH = 9
 
 # Standard Aquagem pump Modbus profile validated on a real DM15 / INVERsilence.
-# Holding registers 2001..2004 expose fault, state, running capacity and power.
+# The stable/basic signature uses 2001..2004. The Antonio V1 beta additionally
+# probes the official V1.5 extended block 2001..2009 without breaking older
+# devices that only implement the basic register set.
 PUMP_MODBUS_READ_FUNCTION = 0x03
 PUMP_MODBUS_WRITE_FUNCTION = 0x10
 PUMP_MODBUS_STATUS_START = 2001
 PUMP_MODBUS_STATUS_COUNT = 4
-PUMP_MODBUS_COMMAND_REGISTER = 3001
 PUMP_MODBUS_STATUS_REPLY_LENGTH = 13
+PUMP_MODBUS_EXTENDED_STATUS_START = 2001
+PUMP_MODBUS_EXTENDED_STATUS_COUNT = 9
+PUMP_MODBUS_EXTENDED_STATUS_REPLY_LENGTH = 23
+PUMP_MODBUS_COMMAND_REGISTER = 3001
+PUMP_MODBUS_SETPOINT_REPLY_LENGTH = 7
 PUMP_MODBUS_OFF_COMMAND = 0
 PUMP_MODBUS_MIN_CAPACITY = 30
 PUMP_MODBUS_MAX_CAPACITY = 100
@@ -74,3 +80,10 @@ PUMP_MODBUS_CAPACITY_STEP = 5
 PUMP_MODBUS_DEFAULT_UNIT = 0xAA
 PUMP_MODBUS_UNIT_MIN = 0xA0
 PUMP_MODBUS_UNIT_MAX = 0xBF
+
+# Aquagem's V1.5 document labels register 2008 as "Mode code" and lists these
+# five values. Their commercial-model meaning is intentionally not asserted yet.
+PUMP_MODBUS_V15_MODE_CODES = (10, 15, 19, 23, 28)
+PUMP_MODBUS_PROFILE_BASIC = "basic_2001_2004"
+PUMP_MODBUS_PROFILE_V15 = "v1_5_2001_2009"
+PUMP_MODBUS_INTER_REQUEST_DELAY = 0.05
