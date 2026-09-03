@@ -50,9 +50,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, client, entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
 
-    # Legacy entries do not yet store a protocol. The first successful refresh
-    # detects it read-only; then persist the result so normal polling never
-    # needs to probe multiple profiles again.
     await coordinator.async_refresh()
 
     if coordinator.last_update_success and client.protocol is not None:
@@ -82,28 +79,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entity_registry = er.async_get(hass)
 
-    # 0.2.1 replaced the legacy pump switch with a variable-speed fan entity.
     legacy_switch = entity_registry.async_get_entity_id(
         Platform.SWITCH, DOMAIN, f"{entry.entry_id}_pump"
     )
     if legacy_switch is not None:
         entity_registry.async_remove(legacy_switch)
 
-    # The estimated-power sensor was experimental and is no longer exposed.
     estimated_power = entity_registry.async_get_entity_id(
         Platform.SENSOR, DOMAIN, f"{entry.entry_id}_estimated_power"
     )
     if estimated_power is not None:
         entity_registry.async_remove(estimated_power)
 
-    # 0.3.4 promotes register 2004 from a disabled raw diagnostic value to the
-    # documented pump power sensor. Remove the old experimental registry entry
-    # so the new enabled power entity is created cleanly.
     raw_2004 = entity_registry.async_get_entity_id(
         Platform.SENSOR, DOMAIN, f"{entry.entry_id}_raw_2004"
     )
     if raw_2004 is not None:
         entity_registry.async_remove(raw_2004)
+
+    # The official V1.5 fault table replaces three legacy-only meanings. Remove
+    # stale registry entries so Antonio's beta shows only the V1.5 mapping.
+    if coordinator.v15_profile is True:
+        for key in (
+            "modbus_display_comm_error",
+            "modbus_main_eeprom_error",
+            "modbus_motor_current_detection_error",
+        ):
+            entity_id = entity_registry.async_get_entity_id(
+                Platform.BINARY_SENSOR, DOMAIN, f"{entry.entry_id}_{key}"
+            )
+            if entity_id is not None:
+                entity_registry.async_remove(entity_id)
 
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(
