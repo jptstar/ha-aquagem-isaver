@@ -4,34 +4,93 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import timedelta
+import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import PROTOCOL_ISAVER
+from .const import (
+    DEFAULT_FAILURE_THRESHOLD,
+    DEFAULT_OFFLINE_SCAN_INTERVAL,
+    PROTOCOL_ISAVER,
+)
 from .protocol import AquagemClient, AquagemError, AquagemStatus
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
     """Coordinate polling and commands."""
 
     def __init__(self, hass: HomeAssistant, client: AquagemClient, interval: int) -> None:
+        self._normal_update_interval = timedelta(seconds=interval)
+        self._offline_update_interval = timedelta(
+            seconds=max(DEFAULT_OFFLINE_SCAN_INTERVAL, interval)
+        )
         super().__init__(
             hass,
-            logger=__import__("logging").getLogger(__name__),
+            logger=_LOGGER,
             name="Aquagem pump",
-            update_interval=timedelta(seconds=interval),
+            update_interval=self._normal_update_interval,
         )
         self.client = client
         self.last_running_speed = client.minimum_speed
         self.active_preset: str | None = None
         self.active_preset_speed: int | None = None
+        self.communication_online: bool | None = None
+        self.consecutive_failures = 0
+        self.failure_threshold = DEFAULT_FAILURE_THRESHOLD
+        self.last_communication_error: str | None = None
 
     async def _async_update_data(self) -> AquagemStatus:
         try:
             status = await self.client.read_status()
         except AquagemError as err:
-            raise UpdateFailed(str(err)) from err
+            self.consecutive_failures += 1
+            self.last_communication_error = str(err)
+
+            # Preserve startup behavior: without any validated data yet, a failed
+            # refresh must still be reported to Home Assistant.
+            if self.data is None:
+                self.communication_online = False
+                raise UpdateFailed(str(err)) from err
+
+            if self.consecutive_failures >= self.failure_threshold:
+                if self.communication_online is not False:
+                    _LOGGER.warning(
+                        "Aquagem pump is unavailable after %s consecutive "
+                        "communication failures (%s); polling reduced to every "
+                        "%s seconds",
+                        self.consecutive_failures,
+                        type(err).__name__,
+                        int(self._offline_update_interval.total_seconds()),
+                    )
+                self.communication_online = False
+                self.update_interval = self._offline_update_interval
+            else:
+                self.communication_online = True
+                self.update_interval = self._normal_update_interval
+                _LOGGER.debug(
+                    "Aquagem communication attempt failed (%s/%s, %s); keeping "
+                    "the pump available and retrying in %s seconds",
+                    self.consecutive_failures,
+                    self.failure_threshold,
+                    type(err).__name__,
+                    int(self._normal_update_interval.total_seconds()),
+                )
+
+            # Match TSUN Local's resilience model: keep the last validated state
+            # during communication failures. Entity availability is driven by
+            # communication_online instead of one isolated failed poll.
+            return self.data
+
+        if self.communication_online is False:
+            _LOGGER.info("Aquagem pump communication restored; normal polling resumed")
+
+        self.communication_online = True
+        self.consecutive_failures = 0
+        self.last_communication_error = None
+        self.update_interval = self._normal_update_interval
 
         if not self.client.minimum_speed <= self.last_running_speed <= self.client.maximum_speed:
             self.last_running_speed = self.client.minimum_speed
