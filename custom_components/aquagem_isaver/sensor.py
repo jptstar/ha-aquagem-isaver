@@ -1,6 +1,11 @@
 """Aquagem pump sensors."""
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import UnitOfPower
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import DOMAIN
@@ -15,7 +20,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         AquagemFaultCodeSensor(coordinator, entry),
     ]
     if coordinator.client.is_pump_modbus:
-        entities.append(AquagemRaw2004Sensor(coordinator, entry))
+        entities.append(AquagemPowerSensor(coordinator, entry))
     async_add_entities(entities)
 
 
@@ -56,16 +61,17 @@ class AquagemFaultCodeSensor(AquagemEntity, SensorEntity):
         return data.fault_code if data is not None else None
 
 
-class AquagemRaw2004Sensor(AquagemEntity, SensorEntity):
-    """Expose Modbus register 2004 without assigning an unverified unit."""
+class AquagemPowerSensor(AquagemEntity, SensorEntity):
+    """Electrical power reported by Modbus holding register 2004."""
 
-    _attr_translation_key = "raw_2004"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_entity_registry_enabled_default = False
+    _attr_translation_key = "power"
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_raw_2004"
+        self._attr_unique_id = f"{entry.entry_id}_power"
 
     @property
     def native_value(self):
