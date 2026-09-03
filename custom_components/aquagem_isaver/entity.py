@@ -21,3 +21,8 @@ class AquagemEntity(CoordinatorEntity):
             manufacturer="Aquagem",
             model=coordinator.client.model,
         )
+
+    @property
+    def available(self) -> bool:
+        """Keep transient read failures from making every entity unavailable."""
+        return super().available and self.coordinator.communication_online is not False
