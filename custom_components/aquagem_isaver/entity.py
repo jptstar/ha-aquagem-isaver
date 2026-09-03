@@ -23,6 +23,20 @@ class AquagemEntity(CoordinatorEntity):
         )
 
     @property
+    def suggested_object_id(self) -> str | None:
+        """Keep generated entity IDs stable and English in every HA language."""
+        if self.platform_data and self.translation_key:
+            translation_key = (
+                f"component.{self.platform_data.platform_name}.entity."
+                f"{self.platform_data.domain}.{self.translation_key}.name"
+            )
+            if english_name := self.platform_data.default_language_platform_translations.get(
+                translation_key
+            ):
+                return english_name
+        return super().suggested_object_id
+
+    @property
     def available(self) -> bool:
         """Keep transient read failures from making every entity unavailable."""
         return super().available and self.coordinator.communication_online is not False
