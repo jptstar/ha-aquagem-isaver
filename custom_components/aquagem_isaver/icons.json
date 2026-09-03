@@ -2,10 +2,13 @@
   "entity": {
     "sensor": {
       "speed": {"default": "mdi:speedometer"},
-      "fault_code": {"default": "mdi:code-braces"}
+      "capacity": {"default": "mdi:speedometer"},
+      "fault_code": {"default": "mdi:code-braces"},
+      "power": {"default": "mdi:flash"}
     },
     "number": {
-      "speed_command": {"default": "mdi:speedometer"}
+      "speed_command": {"default": "mdi:speedometer"},
+      "capacity_command": {"default": "mdi:speedometer"}
     },
     "fan": {
       "pump": {"default": "mdi:pump"}

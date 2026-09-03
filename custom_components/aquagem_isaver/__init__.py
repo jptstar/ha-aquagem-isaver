@@ -96,6 +96,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if estimated_power is not None:
         entity_registry.async_remove(estimated_power)
 
+    # 0.3.4 promotes register 2004 from a disabled raw diagnostic value to the
+    # documented pump power sensor. Remove the old experimental registry entry
+    # so the new enabled power entity is created cleanly.
+    raw_2004 = entity_registry.async_get_entity_id(
+        Platform.SENSOR, DOMAIN, f"{entry.entry_id}_raw_2004"
+    )
+    if raw_2004 is not None:
+        entity_registry.async_remove(raw_2004)
+
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(
         entry, [Platform(platform) for platform in PLATFORMS]

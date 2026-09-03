@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.4
+
+- Correct DM15 / standard Aquagem Modbus capacity control to the pump's real **5% steps** (30, 35, 40, ... 100%).
+- Mirror the pump's native behavior by rounding unsupported Modbus percentages down to the lower 5% step before writing.
+- Promote holding register `2004` from a disabled raw diagnostic value to a native Home Assistant **Power** sensor in watts.
+- Add the Home Assistant `power` device class and `measurement` state class for register `2004`.
+- Add complete Spanish translations for setup, options and entities.
+- Keep generated Home Assistant entity IDs based on the English entity names while allowing localized display names in French and Spanish.
+
 ## 0.3.3
 
 - Debounce transient local communication failures: keep the last validated pump state through the first two consecutive failed polls.

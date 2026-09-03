@@ -58,6 +58,10 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         step = self.coordinator.client.speed_step
-        speed = round(value / step) * step
+        if self.coordinator.client.is_pump_modbus:
+            # The pump rounds unsupported percentages down to its 5% grid.
+            speed = int(value) // step * step
+        else:
+            speed = round(value / step) * step
         speed = min(self._attr_native_max_value, max(self._attr_native_min_value, speed))
         await self.coordinator.async_set_speed(int(speed))

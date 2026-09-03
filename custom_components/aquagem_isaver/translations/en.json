@@ -65,7 +65,7 @@
       "speed": {"name": "Actual speed"},
       "capacity": {"name": "Running capacity"},
       "fault_code": {"name": "Raw fault code"},
-      "raw_2004": {"name": "Register 2004 (raw)"}
+      "power": {"name": "Power"}
     },
     "number": {
       "speed_command": {"name": "RPM setpoint"},

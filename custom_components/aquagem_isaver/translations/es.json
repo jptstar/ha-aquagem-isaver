@@ -1,0 +1,123 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bomba Aquagem",
+        "description": "Conexión mediante una pasarela RS485/TCP transparente. La detección del protocolo es automática y de solo lectura. WaveShare: TCP Server, puerto 502, 8N1, Protocol None. Utilice 1200 baudios para iSaver C3/D0 o 9600 baudios para DM15 / Modbus estándar de bombas Aquagem.",
+        "data": {
+          "name": "Nombre del dispositivo",
+          "host": "Dirección IP",
+          "port": "Puerto TCP"
+        }
+      },
+      "manual": {
+        "title": "Selección manual del protocolo",
+        "description": "La detección automática por firma no ha identificado la bomba. Seleccione un perfil conocido únicamente después de comprobar la velocidad serie de la pasarela WaveShare. Esta validación sigue siendo de solo lectura.",
+        "data": {
+          "protocol": "Perfil de la bomba",
+          "modbus_unit": "Dirección Modbus (160–191 / 0xA0–0xBF)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurar la bomba Aquagem",
+        "description": "Cambie el nombre del dispositivo o la conexión de la pasarela RS485/TCP. El protocolo guardado se valida antes de guardar los cambios.",
+        "data": {
+          "name": "Nombre del dispositivo",
+          "host": "Dirección IP",
+          "port": "Puerto TCP"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se ha podido comunicar con la pasarela o la bomba configurada.",
+      "cannot_validate_manual": "El perfil seleccionado no ha devuelto la firma de protocolo de solo lectura esperada. Compruebe la velocidad serie de la pasarela WaveShare, el cableado RS485 y la dirección Modbus.",
+      "endpoint_in_use": "Esta dirección IP y este puerto TCP ya están siendo utilizados por otra entrada de Bomba Aquagem."
+    },
+    "abort": {
+      "already_configured": "Esta pasarela ya está configurada.",
+      "manual_without_gateway": "La selección manual del protocolo requiere primero los datos de la pasarela."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de la bomba Aquagem",
+        "description": "Configure el intervalo de sondeo. Los dispositivos iSaver C3/D0 también ofrecen límites de RPM configurables y perfiles de velocidad de Home Assistant.",
+        "data": {
+          "scan_interval": "Intervalo de sondeo (segundos)",
+          "min_operating_speed": "Velocidad mínima",
+          "max_operating_speed": "Velocidad máxima",
+          "night_speed": "Velocidad del perfil Noche",
+          "eco_speed": "Velocidad del perfil Eco",
+          "day_speed": "Velocidad del perfil Día",
+          "max_preset_speed": "Velocidad del perfil Máx."
+        }
+      }
+    },
+    "error": {
+      "invalid_speed_step": "Las velocidades deben estar entre 1200 y 2900 rpm en pasos de 100 rpm.",
+      "invalid_speed_range": "La velocidad máxima debe ser superior a la velocidad mínima.",
+      "profile_out_of_range": "Todas las velocidades de los perfiles deben estar dentro del intervalo mínimo y máximo configurado."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "speed": {"name": "Velocidad real"},
+      "capacity": {"name": "Capacidad de funcionamiento"},
+      "fault_code": {"name": "Código de fallo sin procesar"},
+      "power": {"name": "Potencia"}
+    },
+    "number": {
+      "speed_command": {"name": "Consigna de RPM"},
+      "capacity_command": {"name": "Consigna de capacidad"}
+    },
+    "fan": {
+      "pump": {
+        "name": "Bomba",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "max": "Máx.",
+              "day": "Día",
+              "eco": "Eco",
+              "night": "Noche",
+              "custom": "Personalizado"
+            }
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {"name": "Conexión"},
+      "alarm": {"name": "Alarma"},
+      "rs485_error": {"name": "Error de comunicación RS485"},
+      "temperature_derating": {"name": "Reducción de velocidad por alta temperatura"},
+      "keypad_communication_error": {"name": "Error de comunicación del teclado"},
+      "keypad_eeprom_error": {"name": "Error EEPROM del teclado"},
+      "rtc_error": {"name": "Error del reloj RTC"},
+      "main_eeprom_error": {"name": "Error EEPROM de la placa principal"},
+      "current_detection_error": {"name": "Fallo del circuito de detección de corriente"},
+      "main_drive_error": {"name": "Fallo del variador principal"},
+      "heatsink_sensor_error": {"name": "Fallo del sensor del disipador"},
+      "heatsink_overheat": {"name": "Sobretemperatura del disipador"},
+      "overcurrent": {"name": "Sobrecorriente"},
+      "input_voltage_error": {"name": "Tensión de entrada anormal"},
+      "modbus_dc_voltage_abnormal": {"name": "Tensión CC anormal"},
+      "modbus_ac_current_sampling_error": {"name": "Fallo del circuito de muestreo de corriente CA"},
+      "modbus_phase_loss": {"name": "Protección por pérdida de fase"},
+      "modbus_master_drive_error": {"name": "Error del variador maestro"},
+      "modbus_heatsink_sensor_error": {"name": "Error del sensor del disipador"},
+      "modbus_heatsink_overheat": {"name": "Sobretemperatura del disipador"},
+      "modbus_output_current_limit": {"name": "La corriente de salida supera el límite"},
+      "modbus_input_voltage_abnormal": {"name": "Tensión de entrada anormal"},
+      "modbus_no_water": {"name": "Protección por falta de agua"},
+      "modbus_display_comm_error": {"name": "Fallo de comunicación de la placa de visualización"},
+      "modbus_display_eeprom_error": {"name": "Fallo de lectura EEPROM de la placa de visualización"},
+      "modbus_rtc_error": {"name": "Error de lectura de la hora RTC"},
+      "modbus_main_eeprom_error": {"name": "Fallo de lectura EEPROM de la placa principal"},
+      "modbus_motor_current_detection_error": {"name": "Error de detección de corriente del motor"},
+      "modbus_motor_power_overload": {"name": "Sobrecarga de potencia del motor"},
+      "modbus_pfc_protection": {"name": "Protección PFC"}
+    }
+  }
+}
