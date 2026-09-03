@@ -34,7 +34,6 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
             self._attr_native_min_value = coordinator.client.minimum_speed
             self._attr_native_max_value = coordinator.client.maximum_speed
         else:
-            # Preserve the released iSaver identity for existing installations.
             self._attr_unique_id = f"{entry.entry_id}_speed_command"
             self._attr_translation_key = "speed_command"
             self._attr_native_unit_of_measurement = "rpm"
@@ -49,6 +48,11 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
     @property
     def native_value(self):
         data = self.coordinator.data
+        if self.coordinator.client.is_pump_modbus and data is not None:
+            command_capacity = getattr(data, "command_capacity", None)
+            if command_capacity is not None and command_capacity >= self._attr_native_min_value:
+                return min(self._attr_native_max_value, command_capacity)
+
         speed = (
             data.speed
             if data is not None and data.pump_on
@@ -59,7 +63,6 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         step = self.coordinator.client.speed_step
         if self.coordinator.client.is_pump_modbus:
-            # The pump rounds unsupported percentages down to its 5% grid.
             speed = int(value) // step * step
         else:
             speed = round(value / step) * step
