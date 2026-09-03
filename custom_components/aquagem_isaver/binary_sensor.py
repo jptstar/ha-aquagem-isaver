@@ -38,6 +38,8 @@ ISAVER_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="input_voltage_error", translation_key="input_voltage_error", bit=15, protocol=PROTOCOL_ISAVER),
 )
 
+# Legacy/basic mapping retained for Aquagem Modbus variants that do not match
+# the V1.5 extended register signature.
 PUMP_MODBUS_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_dc_voltage_abnormal", translation_key="modbus_dc_voltage_abnormal", bit=0, protocol=PROTOCOL_PUMP_MODBUS),
     AquagemFaultDescription(key="modbus_ac_current_sampling_error", translation_key="modbus_ac_current_sampling_error", bit=1, protocol=PROTOCOL_PUMP_MODBUS),
@@ -57,12 +59,37 @@ PUMP_MODBUS_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_pfc_protection", translation_key="modbus_pfc_protection", bit=15, protocol=PROTOCOL_PUMP_MODBUS),
 )
 
+# Official Aquagem "Inverter Pool Pump RS485 Modbus V1.5 (for V1.0.0)" mapping.
+# Bit 0 is reserved and therefore intentionally has no binary sensor.
+PUMP_MODBUS_V15_FAULTS: tuple[AquagemFaultDescription, ...] = (
+    AquagemFaultDescription(key="modbus_communication_error", translation_key="modbus_communication_error", bit=1, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_no_water", translation_key="modbus_no_water", bit=2, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_rtc_error", translation_key="modbus_rtc_error", bit=3, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_display_eeprom_error", translation_key="modbus_display_eeprom_error", bit=4, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_circuit_board_error", translation_key="modbus_circuit_board_error", bit=5, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_motor_power_overload", translation_key="modbus_motor_power_overload", bit=6, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_pfc_protection", translation_key="modbus_pfc_protection", bit=7, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_dc_voltage_abnormal", translation_key="modbus_dc_voltage_abnormal", bit=8, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_ac_current_sampling_error", translation_key="modbus_ac_current_sampling_error", bit=9, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_phase_loss", translation_key="modbus_phase_loss", bit=10, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_master_drive_error", translation_key="modbus_master_drive_error", bit=11, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_heatsink_sensor_error", translation_key="modbus_heatsink_sensor_error", bit=12, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_heatsink_overheat", translation_key="modbus_heatsink_overheat", bit=13, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_output_current_limit", translation_key="modbus_output_current_limit", bit=14, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_input_voltage_abnormal", translation_key="modbus_input_voltage_abnormal", bit=15, protocol=PROTOCOL_PUMP_MODBUS),
+)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up connectivity, global alarm and protocol-specific fault bits."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     protocol = coordinator.client.protocol
-    faults = ISAVER_FAULTS if protocol == PROTOCOL_ISAVER else PUMP_MODBUS_FAULTS
+    if protocol == PROTOCOL_ISAVER:
+        faults = ISAVER_FAULTS
+    elif coordinator.v15_profile is True:
+        faults = PUMP_MODBUS_V15_FAULTS
+    else:
+        faults = PUMP_MODBUS_FAULTS
     async_add_entities(
         [
             AquagemConnectivity(coordinator, entry),
@@ -88,7 +115,6 @@ class AquagemConnectivity(AquagemEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        """Keep the connectivity diagnostic visible when the pump is offline."""
         return self.coordinator.data is not None
 
     @property
@@ -100,6 +126,7 @@ class AquagemConnectivity(AquagemEntity, BinarySensorEntity):
         return {
             "consecutive_failures": self.coordinator.consecutive_failures,
             "failure_threshold": self.coordinator.failure_threshold,
+            "modbus_v15_profile": self.coordinator.v15_profile,
         }
 
 
