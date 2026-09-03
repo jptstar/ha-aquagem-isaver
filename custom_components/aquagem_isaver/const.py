@@ -16,6 +16,8 @@ CONF_MODBUS_UNIT = "modbus_unit"
 DEFAULT_NAME = "Aquagem Pump"
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
+DEFAULT_FAILURE_THRESHOLD = 3
+DEFAULT_OFFLINE_SCAN_INTERVAL = 30
 
 # Protocol identifiers are intentionally model-independent where possible.
 # Auto-detection validates protocol signatures; it does not guess a commercial
