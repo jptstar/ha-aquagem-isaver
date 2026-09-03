@@ -14,7 +14,8 @@ from .const import (
     DEFAULT_OFFLINE_SCAN_INTERVAL,
     PROTOCOL_ISAVER,
 )
-from .protocol import AquagemClient, AquagemError, AquagemStatus
+from .modbus_v15 import AquagemV15Status, async_read_v15_status
+from .protocol import AquagemClient, AquagemError, AquagemProtocolError, AquagemStatus
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,16 +42,51 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
         self.consecutive_failures = 0
         self.failure_threshold = DEFAULT_FAILURE_THRESHOLD
         self.last_communication_error: str | None = None
+        self.v15_profile: bool | None = None
+
+    async def _read_status(self) -> AquagemStatus | AquagemV15Status:
+        """Read normal status and opportunistically validate the V1.5 extension."""
+        status = await self.client.read_status()
+        if not self.client.is_pump_modbus:
+            return status
+
+        if self.v15_profile is False:
+            return status
+
+        try:
+            extended = await async_read_v15_status(self.client)
+        except AquagemProtocolError as err:
+            if self.v15_profile is None:
+                _LOGGER.info(
+                    "Aquagem Modbus V1.5 extended profile not detected; "
+                    "keeping basic 2001..2004 polling (%s)",
+                    err,
+                )
+                self.v15_profile = False
+            return status
+        except AquagemError as err:
+            # A transient failure of the additional beta probe must not hide a
+            # valid basic status frame. Retry the extension on the next poll.
+            _LOGGER.debug("Aquagem V1.5 beta probe failed temporarily: %s", err)
+            return status
+
+        if self.v15_profile is not True:
+            _LOGGER.info(
+                "Aquagem Modbus V1.5 extended profile detected: mode code %s, "
+                "software version %s",
+                extended.mode_code,
+                extended.software_version,
+            )
+        self.v15_profile = True
+        return extended
 
     async def _async_update_data(self) -> AquagemStatus:
         try:
-            status = await self.client.read_status()
+            status = await self._read_status()
         except AquagemError as err:
             self.consecutive_failures += 1
             self.last_communication_error = str(err)
 
-            # Preserve startup behavior: without any validated data yet, a failed
-            # refresh must still be reported to Home Assistant.
             if self.data is None:
                 self.communication_online = False
                 raise UpdateFailed(str(err)) from err
@@ -78,10 +114,6 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
                     type(err).__name__,
                     int(self._normal_update_interval.total_seconds()),
                 )
-
-            # Match TSUN Local's resilience model: keep the last validated state
-            # during communication failures. Entity availability is driven by
-            # communication_online instead of one isolated failed poll.
             return self.data
 
         if self.communication_online is False:
