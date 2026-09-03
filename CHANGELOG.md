@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.2
+## 0.3.3
 
 - Debounce transient local communication failures: keep the last validated pump state through the first two consecutive failed polls.
 - Mark the pump offline only after 3 consecutive communication failures.
@@ -8,6 +8,10 @@
 - Restore the online state and normal polling immediately on the first successful protocol response.
 - Keep the connectivity diagnostic available while offline and expose the current consecutive-failure count and threshold as attributes.
 - Keep protocol framing, register maps, scaling and write commands unchanged.
+
+## 0.3.2
+
+- Version-only release created before the resilience changes reached the release tag; no functional integration code change compared with 0.3.1.
 
 ## 0.3.1
 
@@ -85,7 +89,7 @@
 - Add configurable Home Assistant profiles: **Nuit**, **Eco**, **Jour** and **Max**.
 - Add integration options for profile RPM values.
 - Add configurable minimum and maximum operating speeds.
-- Enforce the physical 1200–2900 rpm limits and 100 rpm steps.
+- Enforce the physical 1200–2900 rpm limits and 100 rpm speed steps.
 - Keep direct RPM control through the number entity.
 - Remove the obsolete pump switch registry entry during upgrade.
 - Keep the polling interval configurable from the same Options screen.
