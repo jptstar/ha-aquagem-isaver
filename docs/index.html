@@ -3,23 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Aquagem Pump Home Assistant — DM15, INVERsilence & iSaver local control</title>
-  <meta name="description" content="Control and monitor compatible Aquagem variable-speed pool pumps locally in Home Assistant. Validated on Aquagem DM15 / INVERsilence and iSaver Power 1100 with HACS, RS485 and no cloud.">
-  <meta name="keywords" content="Aquagem Home Assistant, Aquagem pump Home Assistant, Aquagem DM15 Home Assistant, INVERsilence Home Assistant, iSaver Power 1100 Home Assistant, Aquagem RS485, Aquagem Modbus, pool pump Home Assistant, HACS pool pump">
-  <meta name="robots" content="index,follow,max-image-preview:large">
+  <title>Aquagem Home Assistant — DM15, INVERsilence & iSaver local RS485 control</title>
+  <meta name="description" content="Local Home Assistant integration for Aquagem DM15 / INVERsilence and iSaver Power 1100 pool pumps via RS485/Modbus. HACS, no cloud, power sensor.">
+  <meta name="keywords" content="Aquagem Home Assistant, Aquagem DM15 Home Assistant, INVERsilence Home Assistant, iSaver Power 1100 Home Assistant, Aquagem RS485, Aquagem Modbus, Aquagem register 2004 power, pool pump Home Assistant, HACS pool pump">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
   <meta name="theme-color" content="#074f66">
   <link rel="canonical" href="https://jptstar.github.io/ha-aquagem-isaver/">
   <link rel="icon" href="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Aquagem Pump">
-  <meta property="og:title" content="Aquagem Pump — Aquagem pool pumps in Home Assistant">
-  <meta property="og:description" content="Local Home Assistant control for compatible Aquagem variable-speed pumps. DM15 / INVERsilence and iSaver Power 1100 validated on real hardware.">
+  <meta property="og:title" content="Aquagem Home Assistant — local control for DM15, INVERsilence & iSaver">
+  <meta property="og:description" content="Control compatible Aquagem variable-speed pool pumps locally in Home Assistant through RS485. DM15 / INVERsilence and iSaver Power 1100 validated on real hardware.">
   <meta property="og:url" content="https://jptstar.github.io/ha-aquagem-isaver/">
   <meta property="og:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
+  <meta property="og:image:alt" content="Aquagem Pump Home Assistant integration">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Aquagem Pump — Aquagem pool pumps in Home Assistant">
-  <meta name="twitter:description" content="Local RS485 control for compatible Aquagem variable-speed pool pumps in Home Assistant.">
+  <meta name="twitter:title" content="Aquagem Home Assistant — local RS485 pump control">
+  <meta name="twitter:description" content="HACS integration for local Aquagem DM15 / INVERsilence and iSaver Power 1100 control in Home Assistant.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
 
   <script type="application/ld+json">
@@ -33,15 +34,37 @@
         "description":"Local Home Assistant control and diagnostics for compatible Aquagem variable-speed pool pumps."
       },
       {
-        "@type":"SoftwareSourceCode",
+        "@type":"SoftwareApplication",
         "name":"Aquagem Pump",
-        "softwareVersion":"0.3.1",
+        "applicationCategory":"HomeAutomationApplication",
+        "operatingSystem":"Home Assistant",
+        "softwareVersion":"0.3.4",
+        "isAccessibleForFree":true,
+        "downloadUrl":"https://github.com/jptstar/ha-aquagem-isaver/releases/latest",
         "codeRepository":"https://github.com/jptstar/ha-aquagem-isaver",
-        "runtimePlatform":"Home Assistant",
-        "programmingLanguage":"Python",
         "license":"https://www.gnu.org/licenses/gpl-3.0.html",
         "description":"Open-source Home Assistant integration for local RS485 control of compatible Aquagem variable-speed pool pumps, validated on DM15 / INVERsilence and iSaver Power 1100.",
-        "keywords":["Aquagem","Home Assistant","DM15","INVERsilence","iSaver Power 1100","RS485","Modbus","HACS","pool pump"]
+        "keywords":"Aquagem, Home Assistant, DM15, INVERsilence, iSaver Power 1100, RS485, Modbus, HACS, pool pump"
+      },
+      {
+        "@type":"FAQPage",
+        "mainEntity":[
+          {
+            "@type":"Question",
+            "name":"Can Aquagem DM15 or INVERsilence pumps be controlled from Home Assistant?",
+            "acceptedAnswer":{"@type":"Answer","text":"Yes. Aquagem Pump supports the validated DM15 / INVERsilence Modbus profile through a transparent RS485-to-TCP gateway, with ON/OFF, 30–100% capacity control in 5% steps, diagnostics and power monitoring."}
+          },
+          {
+            "@type":"Question",
+            "name":"Does Aquagem Pump require the Aquagem cloud?",
+            "acceptedAnswer":{"@type":"Answer","text":"No. Communication stays on the local network between Home Assistant, the RS485-to-TCP gateway and the pump."}
+          },
+          {
+            "@type":"Question",
+            "name":"What is Aquagem Modbus register 2004?",
+            "acceptedAnswer":{"@type":"Answer","text":"On the validated DM15 / INVERsilence profile, holding register 2004 reports pump electrical power in watts and is exposed as a native Home Assistant power sensor."}
+          }
+        ]
       }
     ]
   }
@@ -50,7 +73,7 @@
   <style>
     :root{
       --ink:#102736;--muted:#607585;--paper:#f3f8f9;--card:#fff;--line:#d9e8eb;
-      --aqua:#0aa3a7;--blue:#0b6fa4;--deep:#063b53;--green:#16845d;--green-soft:#e8f7f1;
+      --aqua:#0aa3a7;--blue:#0b6fa4;--green:#16845d;--green-soft:#e8f7f1;
       --cyan-soft:#e8f7fa;--shadow:0 18px 50px rgba(9,65,83,.10);--max:1120px;
     }
     *{box-sizing:border-box}
@@ -63,11 +86,11 @@
     nav{display:flex;align-items:center;justify-content:space-between;gap:18px}
     .brand{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:850}
     .brand img{width:44px;height:44px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.22)}
-    .navlinks{display:flex;gap:20px;align-items:center}
+    .navlinks{display:flex;gap:18px;align-items:center}
     .navlinks a{color:#d9f6fb;text-decoration:none;font-size:14px;font-weight:750}
     .hero{display:grid;grid-template-columns:1.28fr .72fr;gap:48px;align-items:center;padding-top:64px}
     .eyebrow{margin:0 0 17px;color:#8fe7ed;text-transform:uppercase;letter-spacing:.13em;font-size:13px;font-weight:850}
-    h1{max-width:820px;margin:0;font-size:clamp(43px,6vw,72px);line-height:.99;letter-spacing:-.052em}
+    h1{max-width:830px;margin:0;font-size:clamp(43px,6vw,72px);line-height:.99;letter-spacing:-.052em}
     .slogan{margin:20px 0 0;font-size:24px;font-weight:900;letter-spacing:-.02em}
     .lead{max-width:800px;margin:21px 0 0;color:#d9edf3;font-size:20px}
     .strap{margin-top:18px;font-weight:850;letter-spacing:.02em}
@@ -90,7 +113,7 @@
     section{margin-top:28px;padding:34px;border:1px solid var(--line);border-radius:24px;background:var(--card);box-shadow:var(--shadow)}
     h2{margin:0 0 10px;font-size:clamp(28px,4vw,40px);letter-spacing:-.04em}
     h3{margin:0 0 10px}
-    .intro{max-width:860px;margin:0;color:var(--muted);font-size:18px}
+    .intro{max-width:900px;margin:0;color:var(--muted);font-size:18px}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}
     .card{min-height:150px;padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}
     .card strong{display:block;margin-bottom:7px;font-size:18px}
@@ -114,8 +137,12 @@
     .step:before{counter-increment:step;content:counter(step);display:grid;place-items:center;width:34px;height:34px;margin-bottom:14px;border-radius:50%;color:#fff;background:var(--blue);font-weight:900}
     .step p{margin:6px 0 0;color:var(--muted)}
     .install-note{margin-top:20px;padding:18px;border-radius:16px;background:var(--green-soft);color:#0d684d;font-weight:750}
-    .code{padding:16px;border-radius:14px;background:#0c2733;color:#dff7f8;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
     .credit{margin-top:20px;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:#f8fbfc}
+    .faq{margin-top:22px}
+    .faq details{padding:17px 0;border-bottom:1px solid var(--line)}
+    .faq details:last-child{border-bottom:0}
+    .faq summary{cursor:pointer;font-weight:850;font-size:18px}
+    .faq p{margin:8px 0 0;color:var(--muted)}
     footer{padding:8px 0 42px;color:var(--muted);text-align:center;font-size:14px}
     @media(max-width:830px){.hero,.steps,.two{grid-template-columns:1fr}.grid{display:flex;flex-direction:column;gap:12px}.navlinks{display:none}.hero{gap:28px;padding-top:48px}section{padding:24px}}
   </style>
@@ -125,8 +152,8 @@
 <header>
   <div class="wrap">
     <nav>
-      <a class="brand" href="#top"><img src="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png" alt="Aquagem Pump Home Assistant icon"><span>Aquagem Pump</span></a>
-      <div class="navlinks"><a href="#features">Features</a><a href="#compatibility">Compatibility</a><a href="#control">Control</a><a href="#install">Install</a><a href="#gateway">RS485</a><a href="#credits">Credits</a></div>
+      <a class="brand" href="#top"><img src="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png" alt="Aquagem Pump Home Assistant integration icon"><span>Aquagem Pump</span></a>
+      <div class="navlinks"><a href="#features">Features</a><a href="#compatibility">Compatibility</a><a href="#control">Control</a><a href="#install">Install</a><a href="#gateway">RS485</a><a href="#faq">FAQ</a></div>
     </nav>
 
     <div class="hero" id="top">
@@ -134,22 +161,22 @@
         <p class="eyebrow">Aquagem pool pump integration · Home Assistant</p>
         <h1>Aquagem variable-speed pool pumps in Home Assistant</h1>
         <p class="slogan">Your pump. Your network. Your control.</p>
-        <p class="lead">Local control and diagnostics for compatible <strong>Aquagem DM15 / INVERsilence</strong> and <strong>iSaver Power 1100</strong> pumps, directly inside Home Assistant.</p>
-        <p class="strap">Local RS485 · Automatic protocol detection · Variable speed · No cloud</p>
+        <p class="lead">Local control, power monitoring and diagnostics for compatible <strong>Aquagem DM15 / INVERsilence</strong> and <strong>iSaver Power 1100</strong> pumps, directly inside Home Assistant.</p>
+        <p class="strap">Local RS485 · Modbus · Automatic protocol detection · Variable speed · No cloud</p>
         <div class="actions">
           <a class="button primary" href="https://my.home-assistant.io/redirect/hacs_repository/?owner=jptstar&amp;repository=ha-aquagem-isaver&amp;category=integration">Install with HACS</a>
           <a class="button secondary" href="https://github.com/jptstar/ha-aquagem-isaver">View on GitHub</a>
-          <a class="button secondary" href="https://github.com/jptstar/ha-aquagem-isaver/releases/latest">Latest release</a>
+          <a class="button secondary" href="https://github.com/jptstar/ha-aquagem-isaver/releases/tag/v0.3.4">Release 0.3.4</a>
         </div>
       </div>
 
-      <aside class="preview-card" aria-label="Integration summary">
+      <aside class="preview-card" aria-label="Aquagem Pump integration summary">
         <span class="preview-kicker">HOME ASSISTANT · LOCAL POLLING</span>
-        <h3>Aquagem Pump 0.3.1</h3>
-        <div class="preview-primary"><strong>One fan entity</strong><span>ON/OFF and variable-speed control, adapted to the detected pump protocol.</span></div>
+        <h3>Aquagem Pump 0.3.4</h3>
+        <div class="preview-primary"><strong>Native local pump control</strong><span>ON/OFF, variable speed, alarms, diagnostics and real power for the validated Modbus profile.</span></div>
         <div class="preview-stats">
           <div class="preview-stat"><strong>2</strong><span>validated protocol families</span></div>
-          <div class="preview-stat"><strong>0</strong><span>cloud services required</span></div>
+          <div class="preview-stat"><strong>3</strong><span>UI languages: EN · FR · ES</span></div>
         </div>
         <div class="preview-note">Validated on real Aquagem hardware through transparent RS485-to-TCP gateways.</div>
       </aside>
@@ -161,34 +188,34 @@
   <section id="features">
     <span class="badge info">LOCAL BY DESIGN</span>
     <h2>Control your Aquagem pump directly from Home Assistant</h2>
-    <p class="intro">Aquagem Pump connects to the pump through a transparent RS485-to-TCP gateway. Home Assistant reads the real operating state, exposes diagnostics and controls the pump without relying on the Aquagem cloud.</p>
+    <p class="intro">Aquagem Pump connects through a transparent RS485-to-TCP gateway. Home Assistant reads the real operating state, power and diagnostics and controls the pump without relying on the Aquagem cloud.</p>
     <div class="grid">
       <div class="card"><strong>Variable-speed fan</strong><span class="muted">A native Home Assistant <code>fan</code> entity provides ON/OFF and variable-speed control.</span></div>
       <div class="card"><strong>Automatic protocol detection</strong><span class="muted">Read-only signature checks identify the supported Aquagem protocol and store it for normal polling.</span></div>
-      <div class="card"><strong>Real diagnostics</strong><span class="muted">Fault words, alarm states and protocol-specific diagnostic entities come from the pump itself.</span></div>
+      <div class="card"><strong>Real power sensor</strong><span class="muted">DM15 / INVERsilence register 2004 is exposed as electrical power in watts.</span></div>
       <div class="card"><strong>No cloud required</strong><span class="muted">Communication stays on your local network between Home Assistant, the gateway and the pump.</span></div>
       <div class="card"><strong>HACS installation</strong><span class="muted">Install as a custom Home Assistant integration and configure the gateway from the UI.</span></div>
-      <div class="card"><strong>English &amp; French UI</strong><span class="muted">Entity names and setup text are localized while internal IDs remain language-neutral.</span></div>
+      <div class="card"><strong>English, French &amp; Spanish</strong><span class="muted">Friendly names and setup text are localized while generated entity IDs remain English and stable.</span></div>
     </div>
   </section>
 
   <section id="compatibility">
     <span class="badge good">REAL-HARDWARE VALIDATED</span>
     <h2>Aquagem pump compatibility</h2>
-    <p class="intro">The integration is built around protocol signatures rather than only commercial model names. Two Aquagem pump families are currently validated on real hardware.</p>
+    <p class="intro">The integration identifies protocol signatures rather than guessing only from commercial model names. Two Aquagem pump families are currently validated on real hardware.</p>
     <table>
       <thead><tr><th>Validated hardware</th><th>Protocol</th><th>RS485</th><th>Control</th><th>Status</th></tr></thead>
       <tbody>
         <tr><td><strong>iSaver Power 1100</strong></td><td>Proprietary C3 / D0</td><td><code>1200-8-N-1</code></td><td>1200–2900 rpm · OFF=1</td><td>✅ Validated</td></tr>
-        <tr><td><strong>DM15 / INVERsilence</strong></td><td>Modbus RTU 03 / 10</td><td><code>9600-8-N-1</code></td><td>30–100% · OFF=0</td><td>✅ Validated</td></tr>
+        <tr><td><strong>DM15 / INVERsilence</strong></td><td>Modbus RTU 03 / 10</td><td><code>9600-8-N-1</code></td><td>30–100% in 5% steps · OFF=0</td><td>✅ Validated</td></tr>
       </tbody>
     </table>
     <div class="compat-callout"><strong>Your Aquagem model is not listed?</strong><span>Automatic detection checks protocol structure, CRC and coherent register values. Other Aquagem pumps using the same validated register layout may be compatible even when their commercial model name has not yet been field-tested.</span></div>
   </section>
 
   <section id="control">
-    <h2>One Home Assistant control, two pump protocols</h2>
-    <p class="intro">Both supported families appear as a Home Assistant fan, while the integration translates Home Assistant commands to the native control model used by the pump.</p>
+    <h2>Home Assistant control for Aquagem DM15, INVERsilence and iSaver</h2>
+    <p class="intro">Both supported families appear as a Home Assistant fan, while the integration translates commands to the native control model used by the pump.</p>
     <div class="two">
       <div class="panel">
         <h3>iSaver Power 1100</h3>
@@ -196,7 +223,7 @@
           <li>Actual pump speed in rpm</li>
           <li>Physical range: 1200–2900 rpm</li>
           <li>100 rpm command grid</li>
-          <li>Home Assistant presets: Max, Day/Jour, Eco, Night/Nuit, Custom/Perso</li>
+          <li>Home Assistant presets: Max, Day, Eco, Night and Custom</li>
           <li>Validated persistent OFF command: value 1</li>
         </ul>
       </div>
@@ -205,7 +232,9 @@
         <ul>
           <li>Actual running capacity from register 2003</li>
           <li>Native operating range: 30–100%</li>
-          <li>Integer percentage control through register 3001</li>
+          <li><strong>5% capacity steps:</strong> 30, 35, 40 ... 100%</li>
+          <li>Unsupported values are rounded down to the lower 5% step</li>
+          <li>Electrical power from register 2004 in watts</li>
           <li>Modbus function 03 for reads and 10 for writes</li>
           <li>Validated OFF command: register 3001 = 0</li>
         </ul>
@@ -214,20 +243,20 @@
   </section>
 
   <section id="detection">
-    <h2>Automatic Aquagem protocol detection</h2>
+    <h2>Automatic Aquagem RS485 protocol detection</h2>
     <p class="intro">Setup starts with safe read-only probes. A simple TCP connection or generic Modbus answer is not accepted as a match.</p>
     <div class="steps">
       <div class="step"><strong>Probe the iSaver signature</strong><p>The integration validates the proprietary C3 frame structure and CRC.</p></div>
-      <div class="step"><strong>Probe Aquagem Modbus</strong><p>It checks holding registers 2001–2004, first at address 0xAA and then the Aquagem address range if required.</p></div>
-      <div class="step"><strong>Store the detected profile</strong><p>Once identified, the protocol and Modbus unit are kept in the config entry so polling uses only the correct backend.</p></div>
+      <div class="step"><strong>Probe Aquagem Modbus</strong><p>It checks holding registers 2001–2004, first at address 0xAA and then the documented Aquagem address range if required.</p></div>
+      <div class="step"><strong>Store the detected profile</strong><p>Once identified, the protocol and Modbus unit are saved so normal polling uses only the correct backend.</p></div>
     </div>
-    <div class="install-note">The RS485 baud rate is configured in the gateway itself. Use 1200 baud for the validated iSaver C3/D0 profile and 9600 baud for the validated Aquagem Modbus profile.</div>
+    <div class="install-note">Use 1200 baud for the validated iSaver C3/D0 profile and 9600 baud for the validated DM15 / INVERsilence Modbus profile.</div>
   </section>
 
   <section id="install">
     <span class="badge good">HACS</span>
     <h2>Install Aquagem Pump in Home Assistant</h2>
-    <p class="intro">The fastest path is HACS. After installation, restart Home Assistant and add the integration from Devices &amp; services.</p>
+    <p class="intro">Install the custom integration with HACS, restart Home Assistant, then add Aquagem Pump from Devices &amp; services.</p>
     <div class="steps">
       <div class="step"><strong>Add the repository</strong><p>Use the HACS button above or add <code>jptstar/ha-aquagem-isaver</code> as a custom Integration repository.</p></div>
       <div class="step"><strong>Install and restart</strong><p>Install the latest Aquagem Pump release, then restart Home Assistant.</p></div>
@@ -236,8 +265,8 @@
   </section>
 
   <section id="gateway">
-    <h2>RS485-to-TCP gateway settings</h2>
-    <p class="intro">A transparent gateway is required. The integration sends complete RTU/proprietary serial frames through the TCP stream.</p>
+    <h2>Aquagem RS485-to-TCP gateway settings</h2>
+    <p class="intro">A transparent gateway is required. The integration sends the complete serial frames expected by the pump through the TCP stream.</p>
     <table>
       <thead><tr><th>Setting</th><th>Required value</th></tr></thead>
       <tbody>
@@ -250,30 +279,42 @@
         <tr><td>DM15 / Aquagem Modbus baud</td><td><code>9600</code></td></tr>
       </tbody>
     </table>
-    <p class="install-note">Do not enable a gateway "Modbus TCP to RTU" conversion mode. Aquagem Pump already builds the serial frames expected by the pump.</p>
+    <p class="install-note">Do not enable a gateway “Modbus TCP to RTU” conversion mode. Aquagem Pump already builds the serial frames expected by the pump.</p>
   </section>
 
   <section id="diagnostics">
-    <h2>Status, alarms and diagnostics</h2>
-    <p class="intro">The integration exposes a common connection state, alarm state and raw fault word, plus protocol-specific sensors. Unknown values remain raw instead of being assigned an unverified meaning.</p>
+    <h2>Aquagem pump status, power, alarms and diagnostics</h2>
+    <p class="intro">The integration exposes connection health, alarm state, raw fault information and protocol-specific sensors directly in Home Assistant.</p>
     <div class="grid">
-      <div class="card"><strong>Connection</strong><span class="muted">Gateway and pump communication health.</span></div>
+      <div class="card"><strong>Connection</strong><span class="muted">Gateway and pump communication health with resilience against short transient failures.</span></div>
       <div class="card"><strong>Alarm</strong><span class="muted">Global alarm derived from the complete fault word.</span></div>
       <div class="card"><strong>Raw fault code</strong><span class="muted">Direct access to the protocol fault word for diagnostics.</span></div>
-      <div class="card"><strong>Actual speed / capacity</strong><span class="muted">RPM for iSaver, running capacity percentage for the Modbus profile.</span></div>
+      <div class="card"><strong>Actual speed / capacity</strong><span class="muted">RPM for iSaver, running-capacity percentage for the Modbus profile.</span></div>
+      <div class="card"><strong>Power</strong><span class="muted">DM15 / INVERsilence register 2004 exposed as a native Home Assistant power sensor in watts.</span></div>
       <div class="card"><strong>Protocol fault bits</strong><span class="muted">Dedicated binary sensors for documented iSaver and Modbus faults.</span></div>
-      <div class="card"><strong>Register 2004 raw</strong><span class="muted">Kept diagnostic-only until its physical unit is independently established.</span></div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <span class="badge info">FAQ</span>
+    <h2>Aquagem Home Assistant FAQ</h2>
+    <div class="faq">
+      <details open><summary>Can I control an Aquagem DM15 or INVERsilence from Home Assistant?</summary><p>Yes. The validated Modbus profile provides ON/OFF and 30–100% capacity control through a transparent RS485-to-TCP gateway. Version 0.3.4 uses the pump's real 5% capacity grid.</p></details>
+      <details><summary>Does the integration use the Aquagem cloud?</summary><p>No. The integration communicates locally between Home Assistant, the RS485 gateway and the pump.</p></details>
+      <details><summary>What does Modbus register 2004 report?</summary><p>On the validated DM15 / INVERsilence profile, register 2004 reports electrical power in watts. Aquagem Pump exposes it with Home Assistant's power device class and measurement state class.</p></details>
+      <details><summary>Why can the physical pump panel stop responding during bus control?</summary><p>Some Aquagem pump controllers prioritize remote/bus operation while Modbus commands are active. This behavior has also been observed on other Aquagem inverter products and is being documented separately from Home Assistant control.</p></details>
+      <details><summary>Which languages are available?</summary><p>The integration includes English, French and Spanish display translations. Generated entity IDs stay based on English names for stable automations and dashboards.</p></details>
     </div>
   </section>
 
   <section id="credits">
     <h2>Real-hardware validation &amp; contributors</h2>
     <p class="intro">Compatibility is marked as validated only after repeatable tests on real equipment.</p>
-    <div class="credit"><strong>Antonio Garcia — DM15 / INVERsilence validation</strong><p class="muted">Antonio independently validated the DM15 register map, 9600-8-N-1 communication, capacity feedback, guarded Modbus commands at 30/50/70/100%, valid function 0x10 acknowledgements and the final register 3001 = 0 OFF command on real hardware.</p></div>
+    <div class="credit"><strong>Antonio Garcia — DM15 / INVERsilence validation</strong><p class="muted">Antonio independently validated DM15 communication and control on real hardware, confirmed the native 5% capacity steps and confirmed that Modbus register 2004 reports power in watts.</p></div>
   </section>
 
   <section id="project">
-    <h2>Open-source community project</h2>
+    <h2>Open-source Home Assistant community project</h2>
     <p class="intro"><strong>Aquagem Pump is an unofficial community integration.</strong> It is independent and is not developed, approved, endorsed or maintained by Aquagem.</p>
     <div class="two">
       <div class="panel"><h3>Project</h3><p>Created and maintained by <strong>Jean-Philippe TESTART · jptstar</strong>.</p><p class="muted">Developed and shared for technical curiosity and the Home Assistant community.</p></div>
@@ -283,7 +324,7 @@
 </main>
 
 <footer>
-  <div class="wrap">Aquagem Pump · by <a href="https://github.com/jptstar">jptstar</a> · <a href="https://github.com/jptstar/ha-aquagem-isaver">GitHub</a> · Home Assistant · Local RS485 control</div>
+  <div class="wrap">Aquagem Pump 0.3.4 · by <a href="https://github.com/jptstar">jptstar</a> · <a href="https://github.com/jptstar/ha-aquagem-isaver">GitHub</a> · Home Assistant · Local RS485 control</div>
 </footer>
 </body>
 </html>
