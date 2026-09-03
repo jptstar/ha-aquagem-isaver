@@ -87,8 +87,20 @@ class AquagemConnectivity(AquagemEntity, BinarySensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_connectivity"
 
     @property
+    def available(self) -> bool:
+        """Keep the connectivity diagnostic visible when the pump is offline."""
+        return self.coordinator.data is not None
+
+    @property
     def is_on(self):
-        return self.coordinator.last_update_success
+        return self.coordinator.communication_online is True
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "consecutive_failures": self.coordinator.consecutive_failures,
+            "failure_threshold": self.coordinator.failure_threshold,
+        }
 
 
 class AquagemAlarm(AquagemEntity, BinarySensorEntity):
