@@ -107,7 +107,12 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
 
     def _normalize_speed(self, speed: float) -> int:
         """Clamp a command to the active protocol limits and control grid."""
-        speed = round(speed / self._speed_step) * self._speed_step
+        # Aquagem Modbus pumps use discrete 5% capacity steps and physically
+        # round unsupported values down. Mirror that behavior before writing.
+        if self.coordinator.client.is_pump_modbus:
+            speed = int(speed) // self._speed_step * self._speed_step
+        else:
+            speed = round(speed / self._speed_step) * self._speed_step
         return min(self._maximum_speed, max(self._minimum_speed, int(speed)))
 
     @property
@@ -135,9 +140,9 @@ class AquagemPumpFan(AquagemEntity, FanEntity):
     @property
     def speed_count(self) -> int:
         if self.coordinator.client.is_pump_modbus:
-            # Keep Home Assistant's slider on a 1% grid. Commands from 1..29%
-            # are safely clamped to the documented 30% physical minimum.
-            return 100
+            # Home Assistant derives the percentage increment from speed_count.
+            # 20 steps gives a native 5% slider grid: 30, 35, 40, ... 100%.
+            return 100 // self._speed_step
         return ((self._maximum_speed - self._minimum_speed) // self._speed_step) + 1
 
     @property
