@@ -4,7 +4,13 @@
       "speed": {"default": "mdi:speedometer"},
       "capacity": {"default": "mdi:speedometer"},
       "fault_code": {"default": "mdi:code-braces"},
-      "power": {"default": "mdi:flash"}
+      "power": {"default": "mdi:flash"},
+      "energy_consumption": {"default": "mdi:counter"},
+      "mode_code": {"default": "mdi:tune-variant"},
+      "software_version": {"default": "mdi:chip"},
+      "capacity_setpoint_feedback": {"default": "mdi:target"},
+      "register_2005": {"default": "mdi:database-eye"},
+      "register_2006": {"default": "mdi:database-eye"}
     },
     "number": {
       "speed_command": {"default": "mdi:speedometer"},
@@ -27,7 +33,9 @@
       "heatsink_sensor_error": {"default": "mdi:thermometer-alert"},
       "heatsink_overheat": {"default": "mdi:thermometer-high"},
       "overcurrent": {"default": "mdi:current-ac"},
-      "input_voltage_error": {"default": "mdi:flash-alert-outline"}
+      "input_voltage_error": {"default": "mdi:flash-alert-outline"},
+      "modbus_communication_error": {"default": "mdi:lan-disconnect"},
+      "modbus_circuit_board_error": {"default": "mdi:memory"}
     }
   }
 }
