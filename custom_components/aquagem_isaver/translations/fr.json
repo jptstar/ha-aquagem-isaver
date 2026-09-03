@@ -65,7 +65,7 @@
       "speed": {"name": "Vitesse réelle"},
       "capacity": {"name": "Capacité de fonctionnement"},
       "fault_code": {"name": "Code défaut brut"},
-      "raw_2004": {"name": "Registre 2004 (brut)"}
+      "power": {"name": "Puissance"}
     },
     "number": {
       "speed_command": {"name": "Consigne RPM"},
