@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2
+
+- Debounce transient local communication failures: keep the last validated pump state through the first two consecutive failed polls.
+- Mark the pump offline only after 3 consecutive communication failures.
+- Reduce polling to 30 seconds while offline, or keep the configured polling interval when it is already slower.
+- Restore the online state and normal polling immediately on the first successful protocol response.
+- Keep the connectivity diagnostic available while offline and expose the current consecutive-failure count and threshold as attributes.
+- Keep protocol framing, register maps, scaling and write commands unchanged.
+
 ## 0.3.1
 
 - Change the project license from MIT to **GNU GPL v3.0 or later** (`GPL-3.0-or-later`).
