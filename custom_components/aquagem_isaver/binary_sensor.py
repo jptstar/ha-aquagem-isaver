@@ -11,7 +11,12 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.helpers.entity import EntityCategory
 
-from .const import DOMAIN, PROTOCOL_ISAVER, PROTOCOL_PUMP_MODBUS
+from .const import (
+    DOMAIN,
+    PROTOCOL_ISAVER,
+    PROTOCOL_PUMP_MODBUS,
+    PUMP_MODBUS_V15_MODE_CODES,
+)
 from .entity import AquagemEntity
 
 
@@ -38,7 +43,9 @@ ISAVER_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="input_voltage_error", translation_key="input_voltage_error", bit=15, protocol=PROTOCOL_ISAVER),
 )
 
-PUMP_MODBUS_FAULTS: tuple[AquagemFaultDescription, ...] = (
+# Legacy Aquagem register map retained for backward compatibility with pumps that
+# do not expose the V1.5 2007..2009 extension.
+PUMP_MODBUS_LEGACY_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_dc_voltage_abnormal", translation_key="modbus_dc_voltage_abnormal", bit=0, protocol=PROTOCOL_PUMP_MODBUS),
     AquagemFaultDescription(key="modbus_ac_current_sampling_error", translation_key="modbus_ac_current_sampling_error", bit=1, protocol=PROTOCOL_PUMP_MODBUS),
     AquagemFaultDescription(key="modbus_phase_loss", translation_key="modbus_phase_loss", bit=2, protocol=PROTOCOL_PUMP_MODBUS),
@@ -57,12 +64,42 @@ PUMP_MODBUS_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_pfc_protection", translation_key="modbus_pfc_protection", bit=15, protocol=PROTOCOL_PUMP_MODBUS),
 )
 
+# Aquagem "Inverter Pool Pump RS485 Modbus V1.5 (for V1.0.0)" fault map.
+# Bit 0 is documented as reserved and intentionally has no entity.
+PUMP_MODBUS_V15_FAULTS: tuple[AquagemFaultDescription, ...] = (
+    AquagemFaultDescription(key="modbus_communication_error", translation_key="modbus_communication_error", bit=1, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_no_water", translation_key="modbus_no_water", bit=2, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_rtc_error", translation_key="modbus_rtc_error", bit=3, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_display_eeprom_error", translation_key="modbus_display_eeprom_error", bit=4, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_circuit_board_error", translation_key="modbus_circuit_board_error", bit=5, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_motor_power_overload", translation_key="modbus_motor_power_overload", bit=6, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_pfc_protection", translation_key="modbus_pfc_protection", bit=7, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_dc_voltage_abnormal", translation_key="modbus_dc_voltage_abnormal", bit=8, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_ac_current_sampling_error", translation_key="modbus_ac_current_sampling_error", bit=9, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_phase_loss", translation_key="modbus_phase_loss", bit=10, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_master_drive_error", translation_key="modbus_master_drive_error", bit=11, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_heatsink_sensor_error", translation_key="modbus_heatsink_sensor_error", bit=12, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_heatsink_overheat", translation_key="modbus_heatsink_overheat", bit=13, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_output_overcurrent", translation_key="modbus_output_overcurrent", bit=14, protocol=PROTOCOL_PUMP_MODBUS),
+    AquagemFaultDescription(key="modbus_input_voltage_abnormal", translation_key="modbus_input_voltage_abnormal", bit=15, protocol=PROTOCOL_PUMP_MODBUS),
+)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up connectivity, global alarm and protocol-specific fault bits."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     protocol = coordinator.client.protocol
-    faults = ISAVER_FAULTS if protocol == PROTOCOL_ISAVER else PUMP_MODBUS_FAULTS
+
+    if protocol == PROTOCOL_ISAVER:
+        faults = ISAVER_FAULTS
+    else:
+        data = coordinator.data
+        faults = (
+            PUMP_MODBUS_V15_FAULTS
+            if data is not None and data.mode_code in PUMP_MODBUS_V15_MODE_CODES
+            else PUMP_MODBUS_LEGACY_FAULTS
+        )
+
     async_add_entities(
         [
             AquagemConnectivity(coordinator, entry),

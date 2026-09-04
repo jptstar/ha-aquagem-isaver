@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from .const import (
     ISAVER_DEVICE_ADDRESS,
@@ -15,6 +15,9 @@ from .const import (
     PUMP_MODBUS_CAPACITY_STEP,
     PUMP_MODBUS_COMMAND_REGISTER,
     PUMP_MODBUS_DEFAULT_UNIT,
+    PUMP_MODBUS_EXTENDED_COUNT,
+    PUMP_MODBUS_EXTENDED_REPLY_LENGTH,
+    PUMP_MODBUS_EXTENDED_START,
     PUMP_MODBUS_MAX_CAPACITY,
     PUMP_MODBUS_MIN_CAPACITY,
     PUMP_MODBUS_OFF_COMMAND,
@@ -54,7 +57,10 @@ class AquagemStatus:
     pump_on: bool
     speed: int
     protocol: str
-    raw_2004: int | None = None
+    power_w: int | None = None
+    energy_raw: int | None = None
+    mode_code: int | None = None
+    software_version: int | None = None
 
 
 def crc16_modbus(data: bytes) -> bytes:
@@ -128,7 +134,7 @@ def decode_pump_modbus_status(reply: bytes, unit: int) -> AquagemStatus:
             f"Invalid Modbus pump byte count {byte_count}: {reply.hex(' ')}"
         )
 
-    fault_code, state, capacity, raw_2004 = (
+    fault_code, state, capacity, power_w = (
         int.from_bytes(payload[index : index + 2], "big")
         for index in range(0, len(payload), 2)
     )
@@ -151,8 +157,32 @@ def decode_pump_modbus_status(reply: bytes, unit: int) -> AquagemStatus:
         pump_on=bool(state),
         speed=capacity,
         protocol=PROTOCOL_PUMP_MODBUS,
-        raw_2004=raw_2004,
+        power_w=power_w,
     )
+
+
+def decode_pump_modbus_extended(reply: bytes, unit: int) -> tuple[int, int, int]:
+    """Decode Aquagem Modbus V1.5 registers 2007..2009."""
+    if len(reply) != PUMP_MODBUS_EXTENDED_REPLY_LENGTH:
+        raise AquagemProtocolError(
+            f"Invalid extended Modbus frame length ({len(reply)} bytes): {reply.hex(' ')}"
+        )
+    if reply[0] != unit or reply[1] != PUMP_MODBUS_READ_FUNCTION:
+        raise AquagemProtocolError(f"Invalid extended Modbus header: {reply.hex(' ')}")
+    _validate_crc(reply)
+
+    byte_count = reply[2]
+    payload = reply[3:-2]
+    if byte_count != 6 or len(payload) != 6:
+        raise AquagemProtocolError(
+            f"Invalid extended Modbus byte count {byte_count}: {reply.hex(' ')}"
+        )
+
+    energy_raw, mode_code, software_version = (
+        int.from_bytes(payload[index : index + 2], "big")
+        for index in range(0, len(payload), 2)
+    )
+    return energy_raw, mode_code, software_version
 
 
 class AquagemClient:
@@ -172,6 +202,7 @@ class AquagemClient:
         self.protocol = protocol if protocol in SUPPORTED_PROTOCOLS else None
         self.modbus_unit = modbus_unit or PUMP_MODBUS_DEFAULT_UNIT
         self._lock = asyncio.Lock()
+        self._extended_modbus_supported: bool | None = None
 
     @property
     def is_pump_modbus(self) -> bool:
@@ -274,6 +305,26 @@ class AquagemClient:
         )
         return decode_isaver_status(reply)
 
+    async def _read_pump_modbus_extended(
+        self,
+        unit: int,
+        timeout: float | None = None,
+    ) -> tuple[int, int, int]:
+        body = bytes(
+            (
+                unit,
+                PUMP_MODBUS_READ_FUNCTION,
+                (PUMP_MODBUS_EXTENDED_START >> 8) & 0xFF,
+                PUMP_MODBUS_EXTENDED_START & 0xFF,
+                0x00,
+                PUMP_MODBUS_EXTENDED_COUNT,
+            )
+        )
+        reply = await self._exchange(
+            frame(body), PUMP_MODBUS_EXTENDED_REPLY_LENGTH, timeout=timeout
+        )
+        return decode_pump_modbus_extended(reply, unit)
+
     async def _read_pump_modbus_status(
         self,
         unit: int | None = None,
@@ -293,7 +344,28 @@ class AquagemClient:
         reply = await self._exchange(
             frame(body), PUMP_MODBUS_STATUS_REPLY_LENGTH, timeout=timeout
         )
-        return decode_pump_modbus_status(reply, unit)
+        status = decode_pump_modbus_status(reply, unit)
+
+        # V1.5 adds useful read-only registers 2007..2009. Probe them without
+        # making them a requirement for the generic Aquagem Modbus profile so
+        # older/alternate register maps continue to work.
+        if self._extended_modbus_supported is not False:
+            try:
+                energy_raw, mode_code, software_version = await self._read_pump_modbus_extended(
+                    unit, timeout=timeout
+                )
+            except AquagemError:
+                self._extended_modbus_supported = False
+            else:
+                self._extended_modbus_supported = True
+                status = replace(
+                    status,
+                    energy_raw=energy_raw,
+                    mode_code=mode_code,
+                    software_version=software_version,
+                )
+
+        return status
 
     async def detect_protocol(self) -> AquagemStatus:
         """Detect a supported profile using read-only signature checks."""

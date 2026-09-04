@@ -45,7 +45,13 @@ jobs:
             exit 0
           fi
 
+          PRERELEASE_FLAG=""
+          if [[ "$VERSION" == *"alpha"* || "$VERSION" == *"beta"* || "$VERSION" == *"rc"* ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "Aquagem Pump ${VERSION}" \
-            --generate-notes
+            --generate-notes \
+            $PRERELEASE_FLAG

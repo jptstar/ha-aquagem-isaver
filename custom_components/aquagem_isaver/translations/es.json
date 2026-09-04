@@ -65,7 +65,10 @@
       "speed": {"name": "Velocidad real"},
       "capacity": {"name": "Capacidad de funcionamiento"},
       "fault_code": {"name": "Código de fallo sin procesar"},
-      "power": {"name": "Potencia"}
+      "power": {"name": "Potencia"},
+      "energy_consumption": {"name": "Consumo de energía"},
+      "mode_code": {"name": "Código de modo"},
+      "software_version": {"name": "Versión de software"}
     },
     "number": {
       "speed_command": {"name": "Consigna de RPM"},
@@ -102,6 +105,7 @@
       "heatsink_overheat": {"name": "Sobretemperatura del disipador"},
       "overcurrent": {"name": "Sobrecorriente"},
       "input_voltage_error": {"name": "Tensión de entrada anormal"},
+      "modbus_communication_error": {"name": "Error de comunicación"},
       "modbus_dc_voltage_abnormal": {"name": "Tensión CC anormal"},
       "modbus_ac_current_sampling_error": {"name": "Fallo del circuito de muestreo de corriente CA"},
       "modbus_phase_loss": {"name": "Protección por pérdida de fase"},
@@ -109,12 +113,14 @@
       "modbus_heatsink_sensor_error": {"name": "Error del sensor del disipador"},
       "modbus_heatsink_overheat": {"name": "Sobretemperatura del disipador"},
       "modbus_output_current_limit": {"name": "La corriente de salida supera el límite"},
+      "modbus_output_overcurrent": {"name": "Sobrecorriente de salida"},
       "modbus_input_voltage_abnormal": {"name": "Tensión de entrada anormal"},
       "modbus_no_water": {"name": "Protección por falta de agua"},
       "modbus_display_comm_error": {"name": "Fallo de comunicación de la placa de visualización"},
       "modbus_display_eeprom_error": {"name": "Fallo de lectura EEPROM de la placa de visualización"},
       "modbus_rtc_error": {"name": "Error de lectura de la hora RTC"},
       "modbus_main_eeprom_error": {"name": "Fallo de lectura EEPROM de la placa principal"},
+      "modbus_circuit_board_error": {"name": "Error de la placa electrónica"},
       "modbus_motor_current_detection_error": {"name": "Error de detección de corriente del motor"},
       "modbus_motor_power_overload": {"name": "Sobrecarga de potencia del motor"},
       "modbus_pfc_protection": {"name": "Protección PFC"}
