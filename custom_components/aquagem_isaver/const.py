@@ -60,7 +60,7 @@ WRITE_SPEED_PREFIX = bytes((ISAVER_DEVICE_ADDRESS, WRITE_FUNCTION, 0x0B, 0xB9))
 READ_STATUS_REPLY_LENGTH = 9
 
 # Standard Aquagem pump Modbus profile validated on a real DM15 / INVERsilence.
-# Holding registers 2001..2004 expose fault, state, running capacity and power.
+# Core holding registers 2001..2004 expose fault, state, running capacity and power.
 PUMP_MODBUS_READ_FUNCTION = 0x03
 PUMP_MODBUS_WRITE_FUNCTION = 0x10
 PUMP_MODBUS_STATUS_START = 2001
@@ -74,3 +74,12 @@ PUMP_MODBUS_CAPACITY_STEP = 5
 PUMP_MODBUS_DEFAULT_UNIT = 0xAA
 PUMP_MODBUS_UNIT_MIN = 0xA0
 PUMP_MODBUS_UNIT_MAX = 0xBF
+
+# Aquagem RS485 Modbus V1.5 (for V1.0.0), supplied for DM-family validation.
+# These registers are read separately so older/alternate Aquagem register maps
+# remain usable even if the extended block is not implemented by the device.
+PUMP_MODBUS_EXTENDED_START = 2007
+PUMP_MODBUS_EXTENDED_COUNT = 3
+PUMP_MODBUS_EXTENDED_REPLY_LENGTH = 11
+PUMP_MODBUS_ENERGY_SCALE = 1000
+PUMP_MODBUS_V15_MODE_CODES = frozenset((10, 15, 19, 23, 28))
