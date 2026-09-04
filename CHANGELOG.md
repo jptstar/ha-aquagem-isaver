@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5-beta.3
+
+- Use the same transparent Aquagem Pump icon for both `brand/icon.png` and `brand/logo.png`.
+- Remove the separate horizontal wordmark from Home Assistant, HACS and website branding paths.
+- Keep all Modbus V1.5 beta functionality unchanged from 0.3.5-beta.2.
+
 ## 0.3.5-beta.2
 
 - Replace the Aquagem Pump app/HACS/web icon with a transparent-background PNG.
