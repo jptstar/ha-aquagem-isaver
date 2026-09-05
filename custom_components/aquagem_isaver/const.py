@@ -39,6 +39,10 @@ SPEED_STEP = 100
 OFF_COMMAND = 1
 ISAVER_BAUDRATE = 1200
 
+# Direct serial iSaver uses the same validated C3/D0 framing as TCP. Keep a
+# conservative 50 ms silence between transactions at 1200 baud.
+ISAVER_SERIAL_GUARD_SECONDS = 0.05
+
 DEFAULT_MIN_OPERATING_SPEED = 1200
 DEFAULT_MAX_OPERATING_SPEED = 2900
 DEFAULT_NIGHT_SPEED = 1200
