@@ -77,9 +77,11 @@
       --cyan-soft:#e8f7fa;--shadow:0 18px 50px rgba(9,65,83,.10);--max:1120px;
     }
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    body{margin:0;color:var(--ink);background:radial-gradient(circle at 92% 3%,rgba(10,163,167,.13),transparent 26rem),var(--paper);font:16px/1.58 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    a{color:var(--blue)}
+    html{scroll-behavior:smooth;max-width:100%;overflow-x:clip}
+    body{max-width:100%;overflow-x:clip;margin:0;color:var(--ink);background:radial-gradient(circle at 92% 3%,rgba(10,163,167,.13),transparent 26rem),var(--paper);font:16px/1.58 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    img,svg,video,canvas{max-width:100%;height:auto}
+    a{color:var(--blue);overflow-wrap:anywhere}
+    code{overflow-wrap:anywhere}
     .wrap{width:min(var(--max),calc(100% - 32px));margin-inline:auto}
     .topline{height:5px;background:linear-gradient(90deg,var(--aqua),var(--blue),#4f63ce)}
     header{padding:22px 0 72px;color:#fff;background:linear-gradient(145deg,#042b3d 0%,#07536d 63%,#0a8390 100%)}
@@ -89,8 +91,9 @@
     .navlinks{display:flex;gap:18px;align-items:center}
     .navlinks a{color:#d9f6fb;text-decoration:none;font-size:14px;font-weight:750}
     .hero{display:grid;grid-template-columns:1.28fr .72fr;gap:48px;align-items:center;padding-top:64px}
+    .hero>*,.grid>*,.two>*,.steps>*{min-width:0}
     .eyebrow{margin:0 0 17px;color:#8fe7ed;text-transform:uppercase;letter-spacing:.13em;font-size:13px;font-weight:850}
-    h1{max-width:830px;margin:0;font-size:clamp(43px,6vw,72px);line-height:.99;letter-spacing:-.052em}
+    h1{max-width:830px;margin:0;font-size:clamp(43px,6vw,72px);line-height:.99;letter-spacing:-.052em;overflow-wrap:anywhere}
     .slogan{margin:20px 0 0;font-size:24px;font-weight:900;letter-spacing:-.02em}
     .lead{max-width:800px;margin:21px 0 0;color:#d9edf3;font-size:20px}
     .strap{margin-top:18px;font-weight:850;letter-spacing:.02em}
@@ -98,53 +101,86 @@
     .button{display:inline-block;padding:12px 17px;border-radius:11px;text-decoration:none;font-weight:850}
     .primary{color:#052836;background:#9cf2ef}
     .secondary{color:#fff;border:1px solid rgba(255,255,255,.27);background:rgba(255,255,255,.08)}
-    .preview-card{padding:26px;border:1px solid rgba(255,255,255,.17);border-radius:24px;background:rgba(255,255,255,.09);backdrop-filter:blur(12px)}
+    .preview-card{min-width:0;padding:26px;border:1px solid rgba(255,255,255,.17);border-radius:24px;background:rgba(255,255,255,.09);backdrop-filter:blur(12px);overflow-wrap:anywhere}
     .preview-kicker{display:block;color:#8fe7ed;letter-spacing:.08em;font-size:12px;font-weight:900}
     .preview-card h3{margin:9px 0 14px;font-size:26px}
     .preview-primary{margin-top:14px;padding:15px 0 4px;border-top:1px solid rgba(255,255,255,.11)}
     .preview-primary strong{display:block;font-size:22px;line-height:1.12}
     .preview-primary span{display:block;margin-top:6px;color:#d8edf2;font-size:14px;line-height:1.4}
     .preview-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
-    .preview-stat{min-height:92px;padding:13px;border-radius:14px;background:rgba(255,255,255,.08)}
+    .preview-stat{min-width:0;min-height:92px;padding:13px;border-radius:14px;background:rgba(255,255,255,.08)}
     .preview-stat strong{display:block;font-size:27px;line-height:1}
     .preview-stat span{display:block;margin-top:7px;color:#d8edf2;font-size:13px;line-height:1.25}
     .preview-note{margin-top:14px;padding-top:13px;border-top:1px solid rgba(255,255,255,.10);color:#bfe1ea;font-size:13px;font-weight:700}
     main{margin-top:-30px;padding-bottom:72px}
-    section{margin-top:28px;padding:34px;border:1px solid var(--line);border-radius:24px;background:var(--card);box-shadow:var(--shadow)}
-    h2{margin:0 0 10px;font-size:clamp(28px,4vw,40px);letter-spacing:-.04em}
-    h3{margin:0 0 10px}
+    section{min-width:0;margin-top:28px;padding:34px;border:1px solid var(--line);border-radius:24px;background:var(--card);box-shadow:var(--shadow);overflow-wrap:anywhere}
+    h2{margin:0 0 10px;font-size:clamp(28px,4vw,40px);letter-spacing:-.04em;overflow-wrap:anywhere}
+    h3{margin:0 0 10px;overflow-wrap:anywhere}
     .intro{max-width:900px;margin:0;color:var(--muted);font-size:18px}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}
-    .card{min-height:150px;padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}
+    .card{min-width:0;min-height:150px;padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}
     .card strong{display:block;margin-bottom:7px;font-size:18px}
     .muted{color:var(--muted)}
-    .badge{display:inline-block;margin-bottom:12px;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:850}
+    .badge{display:inline-block;max-width:100%;margin-bottom:12px;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:850}
     .good{color:var(--green);background:var(--green-soft)}
     .info{color:#08728b;background:var(--cyan-soft)}
-    table{width:100%;margin-top:24px;border-collapse:collapse}
+    table{width:100%;max-width:100%;margin-top:24px;border-collapse:collapse}
     th,td{padding:14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
     th{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.07em}
+    td{overflow-wrap:anywhere}
     tr:last-child td{border-bottom:0}
-    .compat-callout{margin-top:22px;padding:18px 20px;border:1px solid #bfe7d6;border-radius:16px;background:var(--green-soft);color:#0d684d}
+    .compat-callout{min-width:0;margin-top:22px;padding:18px 20px;border:1px solid #bfe7d6;border-radius:16px;background:var(--green-soft);color:#0d684d}
     .compat-callout strong{display:block;margin-bottom:5px;font-size:18px}
     .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}
-    .panel{padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}
+    .panel{min-width:0;padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}
     .panel h3{font-size:22px}
     .panel ul{margin:12px 0 0;padding-left:20px}
     .panel li+li{margin-top:6px}
     .steps{counter-reset:step;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:25px}
-    .step{position:relative;padding:24px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}
+    .step{min-width:0;position:relative;padding:24px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}
     .step:before{counter-increment:step;content:counter(step);display:grid;place-items:center;width:34px;height:34px;margin-bottom:14px;border-radius:50%;color:#fff;background:var(--blue);font-weight:900}
     .step p{margin:6px 0 0;color:var(--muted)}
-    .install-note{margin-top:20px;padding:18px;border-radius:16px;background:var(--green-soft);color:#0d684d;font-weight:750}
-    .credit{margin-top:20px;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:#f8fbfc}
+    .install-note{min-width:0;margin-top:20px;padding:18px;border-radius:16px;background:var(--green-soft);color:#0d684d;font-weight:750}
+    .credit{min-width:0;margin-top:20px;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:#f8fbfc}
     .faq{margin-top:22px}
-    .faq details{padding:17px 0;border-bottom:1px solid var(--line)}
+    .faq details{min-width:0;padding:17px 0;border-bottom:1px solid var(--line)}
     .faq details:last-child{border-bottom:0}
-    .faq summary{cursor:pointer;font-weight:850;font-size:18px}
+    .faq summary{cursor:pointer;font-weight:850;font-size:18px;overflow-wrap:anywhere}
     .faq p{margin:8px 0 0;color:var(--muted)}
     footer{padding:8px 0 42px;color:var(--muted);text-align:center;font-size:14px}
-    @media(max-width:830px){.hero,.steps,.two{grid-template-columns:1fr}.grid{display:flex;flex-direction:column;gap:12px}.navlinks{display:none}.hero{gap:28px;padding-top:48px}section{padding:24px}}
+    @media(max-width:830px){
+      .hero,.steps,.two{grid-template-columns:1fr}
+      .grid{display:flex;flex-direction:column;gap:12px}
+      .navlinks{display:none}
+      .hero{gap:28px;padding-top:48px}
+      section{padding:24px}
+    }
+    @media(max-width:700px){
+      .wrap{width:calc(100% - 24px)}
+      header{padding-bottom:62px}
+      h1{font-size:clamp(36px,10.5vw,48px);letter-spacing:-.04em}
+      h2{font-size:clamp(27px,8vw,34px)}
+      .lead{font-size:18px}
+      .actions{display:grid;grid-template-columns:1fr}
+      .button{width:100%;text-align:center}
+      section{padding:22px 18px;border-radius:20px}
+      .card,.panel,.step{padding:18px}
+      .preview-card{padding:22px}
+      table.responsive-table{display:block;width:100%;margin-top:18px}
+      table.responsive-table thead{display:none}
+      table.responsive-table tbody,table.responsive-table tr,table.responsive-table td{display:block;width:100%}
+      table.responsive-table tr{margin:0 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#f8fbfc}
+      table.responsive-table tr:last-child{margin-bottom:0}
+      table.responsive-table td{display:grid;grid-template-columns:minmax(88px,.8fr) minmax(0,1.35fr);gap:12px;padding:7px 0;border:0}
+      table.responsive-table td::before{content:attr(data-label);color:var(--muted);font-size:11px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+    }
+    @media(max-width:420px){
+      .wrap{width:calc(100% - 20px)}
+      section{padding:20px 16px}
+      .preview-card{padding:20px}
+      .preview-stats{grid-template-columns:1fr}
+      table.responsive-table td{grid-template-columns:1fr;gap:2px}
+    }
   </style>
 </head>
 <body>
@@ -203,11 +239,11 @@
     <span class="badge good">REAL-HARDWARE VALIDATED</span>
     <h2>Aquagem pump compatibility</h2>
     <p class="intro">The integration identifies protocol signatures rather than guessing only from commercial model names. Two Aquagem pump families are currently validated on real hardware.</p>
-    <table>
+    <table class="responsive-table" aria-label="Validated Aquagem pump compatibility">
       <thead><tr><th>Validated hardware</th><th>Protocol</th><th>RS485</th><th>Control</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td><strong>iSaver Power 1100</strong></td><td>Proprietary C3 / D0</td><td><code>1200-8-N-1</code></td><td>1200–2900 rpm · OFF=1</td><td>✅ Validated</td></tr>
-        <tr><td><strong>DM15 / INVERsilence</strong></td><td>Modbus RTU 03 / 10</td><td><code>9600-8-N-1</code></td><td>30–100% in 5% steps · OFF=0</td><td>✅ Validated</td></tr>
+        <tr><td data-label="Hardware"><strong>iSaver Power 1100</strong></td><td data-label="Protocol">Proprietary C3 / D0</td><td data-label="RS485"><code>1200-8-N-1</code></td><td data-label="Control">1200–2900 rpm · OFF=1</td><td data-label="Status">✅ Validated</td></tr>
+        <tr><td data-label="Hardware"><strong>DM15 / INVERsilence</strong></td><td data-label="Protocol">Modbus RTU 03 / 10</td><td data-label="RS485"><code>9600-8-N-1</code></td><td data-label="Control">30–100% in 5% steps · OFF=0</td><td data-label="Status">✅ Validated</td></tr>
       </tbody>
     </table>
     <div class="compat-callout"><strong>Your Aquagem model is not listed?</strong><span>Automatic detection checks protocol structure, CRC and coherent register values. Other Aquagem pumps using the same validated register layout may be compatible even when their commercial model name has not yet been field-tested.</span></div>
@@ -267,16 +303,16 @@
   <section id="gateway">
     <h2>Aquagem RS485-to-TCP gateway settings</h2>
     <p class="intro">A transparent gateway is required. The integration sends the complete serial frames expected by the pump through the TCP stream.</p>
-    <table>
+    <table class="responsive-table" aria-label="Aquagem RS485-to-TCP gateway settings">
       <thead><tr><th>Setting</th><th>Required value</th></tr></thead>
       <tbody>
-        <tr><td>Work mode</td><td><code>TCP Server</code></td></tr>
-        <tr><td>TCP port</td><td><code>502</code></td></tr>
-        <tr><td>Data bits / parity / stop bits</td><td><code>8 / None / 1</code></td></tr>
-        <tr><td>Flow control</td><td><code>None</code></td></tr>
-        <tr><td>Protocol conversion</td><td><code>None</code> — transparent mode</td></tr>
-        <tr><td>iSaver Power 1100 baud</td><td><code>1200</code></td></tr>
-        <tr><td>DM15 / Aquagem Modbus baud</td><td><code>9600</code></td></tr>
+        <tr><td data-label="Setting">Work mode</td><td data-label="Required value"><code>TCP Server</code></td></tr>
+        <tr><td data-label="Setting">TCP port</td><td data-label="Required value"><code>502</code></td></tr>
+        <tr><td data-label="Setting">Data bits / parity / stop bits</td><td data-label="Required value"><code>8 / None / 1</code></td></tr>
+        <tr><td data-label="Setting">Flow control</td><td data-label="Required value"><code>None</code></td></tr>
+        <tr><td data-label="Setting">Protocol conversion</td><td data-label="Required value"><code>None</code> — transparent mode</td></tr>
+        <tr><td data-label="Setting">iSaver Power 1100 baud</td><td data-label="Required value"><code>1200</code></td></tr>
+        <tr><td data-label="Setting">DM15 / Aquagem Modbus baud</td><td data-label="Required value"><code>9600</code></td></tr>
       </tbody>
     </table>
     <p class="install-note">Do not enable a gateway “Modbus TCP to RTU” conversion mode. Aquagem Pump already builds the serial frames expected by the pump.</p>
