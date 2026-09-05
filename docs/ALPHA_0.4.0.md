@@ -1,6 +1,12 @@
-# Aquagem Pump 0.4.0-alpha.1
+# Aquagem Pump 0.4.0-alpha.2
 
 This alpha starts the transport-layer refactor and adds the first **direct Modbus RTU** path.
+
+## Alpha.2 fix
+
+- Fix Home Assistant 2026.9 startup failure caused by requesting `serialx==1.8.2` while Home Assistant 2026.9 pins `serialx==1.9.0`.
+- Align the custom integration requirement with Home Assistant 2026.9: `serialx==1.9.0`.
+- Declare the Home Assistant `usb` dependency so the native `SerialPortSelector` can populate USB serial devices correctly.
 
 ## What is new
 
