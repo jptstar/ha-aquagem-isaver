@@ -12,6 +12,9 @@ from homeassistant.helpers.selector import (
     NumberSelectorConfig,
     NumberSelectorMode,
     SerialPortSelector,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .const import (
@@ -36,6 +39,8 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    ISAVER_BAUDRATE,
+    ISAVER_SERIAL_GUARD_SECONDS,
     MAX_SPEED,
     MIN_SPEED,
     PROTOCOL_ISAVER,
@@ -73,9 +78,11 @@ SCAN_INTERVAL_SELECTOR = NumberSelector(
     )
 )
 
+MODBUS_ADDRESS_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT))
+
 TRANSPORT_CHOICES = {
     TRANSPORT_TCP: "RS485/TCP gateway",
-    TRANSPORT_SERIAL: "Direct serial / USB-RS485 (Modbus RTU)",
+    TRANSPORT_SERIAL: "Direct serial / USB-RS485",
 }
 
 MANUAL_PROTOCOLS = {
@@ -88,6 +95,48 @@ def _serial_title_suffix(serial_port: str) -> str:
     """Return a compact serial endpoint label for the config entry title."""
     clean = serial_port.split("?", 1)[0].rstrip("/")
     return clean.rsplit("/", 1)[-1] or serial_port
+
+
+def _format_modbus_unit(unit: int) -> str:
+    """Format the stored Modbus unit for the address text field."""
+    return f"0x{unit:02X}"
+
+
+def _parse_modbus_unit(value) -> int:
+    """Accept decimal or hexadecimal Aquagem Modbus addresses."""
+    if isinstance(value, int):
+        unit = value
+    else:
+        text = str(value).strip()
+        if not text:
+            unit = PUMP_MODBUS_DEFAULT_UNIT
+        else:
+            lowered = text.lower()
+            if lowered.startswith("0x"):
+                unit = int(lowered, 16)
+            elif any(char in "abcdefABCDEF" for char in text):
+                unit = int(text, 16)
+            else:
+                unit = int(text, 10)
+
+    if not PUMP_MODBUS_UNIT_MIN <= unit <= PUMP_MODBUS_UNIT_MAX:
+        raise ValueError("Modbus address outside Aquagem range")
+    return unit
+
+
+def _serial_transport(serial_port: str, protocol: str) -> SerialTransport:
+    """Build the serial transport with the validated profile settings."""
+    if protocol == PROTOCOL_ISAVER:
+        return SerialTransport(
+            serial_port,
+            ISAVER_BAUDRATE,
+            inter_frame_delay=ISAVER_SERIAL_GUARD_SECONDS,
+        )
+    return SerialTransport(
+        serial_port,
+        PUMP_MODBUS_BAUDRATE,
+        inter_frame_delay=PUMP_MODBUS_RTU_GUARD_SECONDS,
+    )
 
 
 class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -112,9 +161,9 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
-                    vol.Required(
-                        CONF_TRANSPORT, default=TRANSPORT_TCP
-                    ): vol.In(TRANSPORT_CHOICES),
+                    vol.Required(CONF_TRANSPORT, default=TRANSPORT_TCP): vol.In(
+                        TRANSPORT_CHOICES
+                    ),
                 }
             ),
         )
@@ -138,8 +187,6 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 try:
                     await client.detect_protocol()
                 except AquagemError:
-                    # Auto is the normal path. Only show a protocol menu when
-                    # signature-based detection could not identify the pump.
                     self._pending_data = {
                         CONF_NAME: self._pending_name,
                         CONF_TRANSPORT: TRANSPORT_TCP,
@@ -175,62 +222,70 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_serial(self, user_input=None):
-        """Configure direct DM-family Modbus RTU over a serial port."""
+        """Configure direct serial for Modbus RTU or proprietary C3/D0."""
         errors = {}
         if user_input is not None:
             serial_port = str(user_input[CONF_SERIAL_PORT])
-            unit = int(user_input.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT))
+            protocol = str(user_input[CONF_PROTOCOL])
 
-            await self.async_set_unique_id(f"serial:{serial_port}")
-            self._abort_if_unique_id_configured()
-
-            client = AquagemClient(
-                protocol=PROTOCOL_PUMP_MODBUS,
-                modbus_unit=unit,
-                transport=SerialTransport(
-                    serial_port,
-                    PUMP_MODBUS_BAUDRATE,
-                    inter_frame_delay=PUMP_MODBUS_RTU_GUARD_SECONDS,
-                ),
-            )
             try:
-                await client.test_connection()
-                await client.validate_forced_protocol()
-            except (AquagemError, ValueError):
-                errors["base"] = "cannot_validate_serial"
-            else:
-                data = {
-                    CONF_NAME: self._pending_name,
-                    CONF_TRANSPORT: TRANSPORT_SERIAL,
-                    CONF_SERIAL_PORT: serial_port,
-                    CONF_PROTOCOL: PROTOCOL_PUMP_MODBUS,
-                    CONF_MODBUS_UNIT: unit,
-                }
-                return self.async_create_entry(
-                    title=(
-                        f"{self._pending_name} "
-                        f"{_serial_title_suffix(serial_port)}"
-                    ),
-                    data=data,
+                unit = (
+                    _parse_modbus_unit(
+                        user_input.get(
+                            CONF_MODBUS_UNIT,
+                            _format_modbus_unit(PUMP_MODBUS_DEFAULT_UNIT),
+                        )
+                    )
+                    if protocol == PROTOCOL_PUMP_MODBUS
+                    else PUMP_MODBUS_DEFAULT_UNIT
                 )
-            finally:
-                await client.async_close()
+            except (TypeError, ValueError):
+                errors["base"] = "invalid_modbus_address"
+            else:
+                await self.async_set_unique_id(f"serial:{serial_port}")
+                self._abort_if_unique_id_configured()
+
+                client = AquagemClient(
+                    protocol=protocol,
+                    modbus_unit=unit,
+                    transport=_serial_transport(serial_port, protocol),
+                )
+                try:
+                    await client.test_connection()
+                    await client.validate_forced_protocol()
+                except (AquagemError, ValueError):
+                    errors["base"] = "cannot_validate_serial"
+                else:
+                    data = {
+                        CONF_NAME: self._pending_name,
+                        CONF_TRANSPORT: TRANSPORT_SERIAL,
+                        CONF_SERIAL_PORT: serial_port,
+                        CONF_PROTOCOL: protocol,
+                    }
+                    if protocol == PROTOCOL_PUMP_MODBUS:
+                        data[CONF_MODBUS_UNIT] = unit
+                    return self.async_create_entry(
+                        title=(
+                            f"{self._pending_name} "
+                            f"{_serial_title_suffix(serial_port)}"
+                        ),
+                        data=data,
+                    )
+                finally:
+                    await client.async_close()
 
         return self.async_show_form(
             step_id="serial",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_SERIAL_PORT): SerialPortSelector(),
+                    vol.Required(
+                        CONF_PROTOCOL, default=PROTOCOL_PUMP_MODBUS
+                    ): vol.In(MANUAL_PROTOCOLS),
                     vol.Optional(
                         CONF_MODBUS_UNIT,
-                        default=PUMP_MODBUS_DEFAULT_UNIT,
-                    ): vol.All(
-                        int,
-                        vol.Range(
-                            min=PUMP_MODBUS_UNIT_MIN,
-                            max=PUMP_MODBUS_UNIT_MAX,
-                        ),
-                    ),
+                        default=_format_modbus_unit(PUMP_MODBUS_DEFAULT_UNIT),
+                    ): MODBUS_ADDRESS_SELECTOR,
                 }
             ),
             errors=errors,
@@ -256,10 +311,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except AquagemError:
                 errors["base"] = "cannot_validate_manual"
             else:
-                data = {
-                    **self._pending_data,
-                    CONF_PROTOCOL: protocol,
-                }
+                data = {**self._pending_data, CONF_PROTOCOL: protocol}
                 if protocol == PROTOCOL_PUMP_MODBUS:
                     data[CONF_MODBUS_UNIT] = unit
                 name = data[CONF_NAME]
@@ -273,9 +325,9 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="manual",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
-                        CONF_PROTOCOL, default=PROTOCOL_ISAVER
-                    ): vol.In(MANUAL_PROTOCOLS),
+                    vol.Required(CONF_PROTOCOL, default=PROTOCOL_ISAVER): vol.In(
+                        MANUAL_PROTOCOLS
+                    ),
                     vol.Optional(
                         CONF_MODBUS_UNIT,
                         default=PUMP_MODBUS_DEFAULT_UNIT,
@@ -299,9 +351,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self._async_step_reconfigure_serial(
                 reconfigure_entry, user_input
             )
-        return await self._async_step_reconfigure_tcp(
-            reconfigure_entry, user_input
-        )
+        return await self._async_step_reconfigure_tcp(reconfigure_entry, user_input)
 
     async def _async_step_reconfigure_tcp(self, reconfigure_entry, user_input):
         errors = {}
@@ -383,76 +433,84 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _async_step_reconfigure_serial(self, reconfigure_entry, user_input):
         errors = {}
+        protocol = reconfigure_entry.data.get(CONF_PROTOCOL, PROTOCOL_PUMP_MODBUS)
 
         if user_input is not None:
             name = str(user_input[CONF_NAME]).strip() or DEFAULT_NAME
             serial_port = str(user_input[CONF_SERIAL_PORT])
-            unit = int(user_input[CONF_MODBUS_UNIT])
 
-            endpoint_in_use = any(
-                entry.entry_id != reconfigure_entry.entry_id
-                and entry.data.get(CONF_TRANSPORT) == TRANSPORT_SERIAL
-                and entry.data.get(CONF_SERIAL_PORT) == serial_port
-                for entry in self._async_current_entries()
-            )
-
-            if endpoint_in_use:
-                errors["base"] = "serial_endpoint_in_use"
-            else:
-                client = AquagemClient(
-                    protocol=PROTOCOL_PUMP_MODBUS,
-                    modbus_unit=unit,
-                    transport=SerialTransport(
-                        serial_port,
-                        PUMP_MODBUS_BAUDRATE,
-                        inter_frame_delay=PUMP_MODBUS_RTU_GUARD_SECONDS,
-                    ),
+            try:
+                unit = (
+                    _parse_modbus_unit(
+                        user_input.get(
+                            CONF_MODBUS_UNIT,
+                            _format_modbus_unit(PUMP_MODBUS_DEFAULT_UNIT),
+                        )
+                    )
+                    if protocol == PROTOCOL_PUMP_MODBUS
+                    else PUMP_MODBUS_DEFAULT_UNIT
                 )
-                try:
-                    await client.test_connection()
-                    await client.validate_forced_protocol()
-                except (AquagemError, ValueError):
-                    errors["base"] = "cannot_validate_serial"
+            except (TypeError, ValueError):
+                errors["base"] = "invalid_modbus_address"
+            else:
+                endpoint_in_use = any(
+                    entry.entry_id != reconfigure_entry.entry_id
+                    and entry.data.get(CONF_TRANSPORT) == TRANSPORT_SERIAL
+                    and entry.data.get(CONF_SERIAL_PORT) == serial_port
+                    for entry in self._async_current_entries()
+                )
+
+                if endpoint_in_use:
+                    errors["base"] = "serial_endpoint_in_use"
                 else:
-                    return self.async_update_reload_and_abort(
-                        reconfigure_entry,
-                        title=(
-                            f"{name} "
-                            f"{_serial_title_suffix(serial_port)}"
-                        ),
-                        data_updates={
+                    client = AquagemClient(
+                        protocol=protocol,
+                        modbus_unit=unit,
+                        transport=_serial_transport(serial_port, protocol),
+                    )
+                    try:
+                        await client.test_connection()
+                        await client.validate_forced_protocol()
+                    except (AquagemError, ValueError):
+                        errors["base"] = "cannot_validate_serial"
+                    else:
+                        data_updates = {
                             CONF_NAME: name,
                             CONF_TRANSPORT: TRANSPORT_SERIAL,
                             CONF_SERIAL_PORT: serial_port,
-                            CONF_PROTOCOL: PROTOCOL_PUMP_MODBUS,
-                            CONF_MODBUS_UNIT: unit,
-                        },
-                    )
-                finally:
-                    await client.async_close()
+                            CONF_PROTOCOL: protocol,
+                        }
+                        if protocol == PROTOCOL_PUMP_MODBUS:
+                            data_updates[CONF_MODBUS_UNIT] = unit
+                        return self.async_update_reload_and_abort(
+                            reconfigure_entry,
+                            title=f"{name} {_serial_title_suffix(serial_port)}",
+                            data_updates=data_updates,
+                        )
+                    finally:
+                        await client.async_close()
 
         default_name = reconfigure_entry.data.get(CONF_NAME, DEFAULT_NAME)
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_NAME, default=default_name): str,
-                vol.Required(
-                    CONF_SERIAL_PORT,
-                    default=reconfigure_entry.data[CONF_SERIAL_PORT],
-                ): SerialPortSelector(),
+        schema_fields = {
+            vol.Required(CONF_NAME, default=default_name): str,
+            vol.Required(
+                CONF_SERIAL_PORT,
+                default=reconfigure_entry.data[CONF_SERIAL_PORT],
+            ): SerialPortSelector(),
+        }
+        if protocol == PROTOCOL_PUMP_MODBUS:
+            schema_fields[
                 vol.Required(
                     CONF_MODBUS_UNIT,
-                    default=reconfigure_entry.data.get(
-                        CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
+                    default=_format_modbus_unit(
+                        reconfigure_entry.data.get(
+                            CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
+                        )
                     ),
-                ): vol.All(
-                    int,
-                    vol.Range(
-                        min=PUMP_MODBUS_UNIT_MIN,
-                        max=PUMP_MODBUS_UNIT_MAX,
-                    ),
-                ),
-            }
-        )
+                )
+            ] = MODBUS_ADDRESS_SELECTOR
+
+        schema = vol.Schema(schema_fields)
         if user_input is not None:
             schema = self.add_suggested_values_to_schema(schema, user_input)
 
@@ -475,15 +533,10 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage options for the active protocol."""
         errors = {}
-        is_modbus = (
-            self.config_entry.data.get(CONF_PROTOCOL)
-            == PROTOCOL_PUMP_MODBUS
-        )
+        is_modbus = self.config_entry.data.get(CONF_PROTOCOL) == PROTOCOL_PUMP_MODBUS
 
         if user_input is not None:
-            user_input[CONF_SCAN_INTERVAL] = int(
-                user_input[CONF_SCAN_INTERVAL]
-            )
+            user_input[CONF_SCAN_INTERVAL] = int(user_input[CONF_SCAN_INTERVAL])
             if is_modbus:
                 return self.async_create_entry(title="", data=user_input)
 
@@ -516,10 +569,7 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
                 errors["base"] = "invalid_speed_step"
             elif minimum >= maximum:
                 errors["base"] = "invalid_speed_range"
-            elif any(
-                speed < minimum or speed > maximum
-                for speed in profile_speeds
-            ):
+            elif any(speed < minimum or speed > maximum for speed in profile_speeds):
                 errors["base"] = "profile_out_of_range"
             else:
                 return self.async_create_entry(title="", data=user_input)
@@ -532,9 +582,7 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
                 {
                     vol.Required(
                         CONF_SCAN_INTERVAL,
-                        default=values.get(
-                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                        ),
+                        default=values.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     ): SCAN_INTERVAL_SELECTOR,
                 }
             )
@@ -543,47 +591,36 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
                 {
                     vol.Required(
                         CONF_SCAN_INTERVAL,
-                        default=values.get(
-                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                        ),
+                        default=values.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     ): SCAN_INTERVAL_SELECTOR,
                     vol.Required(
                         CONF_MIN_OPERATING_SPEED,
                         default=values.get(
-                            CONF_MIN_OPERATING_SPEED,
-                            DEFAULT_MIN_OPERATING_SPEED,
+                            CONF_MIN_OPERATING_SPEED, DEFAULT_MIN_OPERATING_SPEED
                         ),
                     ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_MAX_OPERATING_SPEED,
                         default=values.get(
-                            CONF_MAX_OPERATING_SPEED,
-                            DEFAULT_MAX_OPERATING_SPEED,
+                            CONF_MAX_OPERATING_SPEED, DEFAULT_MAX_OPERATING_SPEED
                         ),
                     ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_NIGHT_SPEED,
-                        default=values.get(
-                            CONF_NIGHT_SPEED, DEFAULT_NIGHT_SPEED
-                        ),
+                        default=values.get(CONF_NIGHT_SPEED, DEFAULT_NIGHT_SPEED),
                     ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_ECO_SPEED,
-                        default=values.get(
-                            CONF_ECO_SPEED, DEFAULT_ECO_SPEED
-                        ),
+                        default=values.get(CONF_ECO_SPEED, DEFAULT_ECO_SPEED),
                     ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_DAY_SPEED,
-                        default=values.get(
-                            CONF_DAY_SPEED, DEFAULT_DAY_SPEED
-                        ),
+                        default=values.get(CONF_DAY_SPEED, DEFAULT_DAY_SPEED),
                     ): SPEED_SELECTOR,
                     vol.Required(
                         CONF_MAX_PRESET_SPEED,
                         default=values.get(
-                            CONF_MAX_PRESET_SPEED,
-                            DEFAULT_MAX_PRESET_SPEED,
+                            CONF_MAX_PRESET_SPEED, DEFAULT_MAX_PRESET_SPEED
                         ),
                     ): SPEED_SELECTOR,
                 }
