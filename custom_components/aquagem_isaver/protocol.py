@@ -1,9 +1,10 @@
-"""Local TCP protocols used by Aquagem RS485 gateways."""
+"""Aquagem pump protocol implementation independent from transport."""
 
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, replace
+from time import monotonic
 
 from .const import (
     ISAVER_DEVICE_ADDRESS,
@@ -35,6 +36,7 @@ from .const import (
     SUPPORTED_PROTOCOLS,
     WRITE_SPEED_PREFIX,
 )
+from .transport import AquagemTransport, TcpTransport
 
 
 class AquagemError(Exception):
@@ -42,11 +44,23 @@ class AquagemError(Exception):
 
 
 class AquagemConnectionError(AquagemError):
-    """The gateway could not be reached or did not answer in time."""
+    """The transport could not be reached or did not answer in time."""
 
 
 class AquagemProtocolError(AquagemError):
-    """The gateway returned an invalid frame or no known profile matched."""
+    """The transport returned an invalid frame or no known profile matched."""
+
+
+class AquagemModbusException(AquagemProtocolError):
+    """A standard Modbus exception response."""
+
+    def __init__(self, function: int, exception_code: int) -> None:
+        self.function = function
+        self.exception_code = exception_code
+        super().__init__(
+            f"Modbus exception 0x{exception_code:02X} "
+            f"for function 0x{function:02X}"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +103,16 @@ def _validate_crc(reply: bytes) -> None:
         )
 
 
+def _raise_if_modbus_exception(reply: bytes, unit: int, function: int) -> None:
+    """Raise a typed error for a standard five-byte Modbus exception frame."""
+    if len(reply) != 5:
+        return
+    if reply[0] != unit or reply[1] != (function | 0x80):
+        return
+    _validate_crc(reply)
+    raise AquagemModbusException(function, reply[2])
+
+
 def decode_isaver_status(reply: bytes) -> AquagemStatus:
     """Decode the fixed 9-byte proprietary C3 iSaver status response."""
     if len(reply) != READ_STATUS_REPLY_LENGTH:
@@ -119,6 +143,7 @@ def decode_isaver_status(reply: bytes) -> AquagemStatus:
 
 def decode_pump_modbus_status(reply: bytes, unit: int) -> AquagemStatus:
     """Decode and validate Aquagem pump holding registers 2001..2004."""
+    _raise_if_modbus_exception(reply, unit, PUMP_MODBUS_READ_FUNCTION)
     if len(reply) != PUMP_MODBUS_STATUS_REPLY_LENGTH:
         raise AquagemProtocolError(
             f"Invalid Modbus pump frame length ({len(reply)} bytes): {reply.hex(' ')}"
@@ -163,6 +188,7 @@ def decode_pump_modbus_status(reply: bytes, unit: int) -> AquagemStatus:
 
 def decode_pump_modbus_extended(reply: bytes, unit: int) -> tuple[int, int, int]:
     """Decode Aquagem Modbus V1.5 registers 2007..2009."""
+    _raise_if_modbus_exception(reply, unit, PUMP_MODBUS_READ_FUNCTION)
     if len(reply) != PUMP_MODBUS_EXTENDED_REPLY_LENGTH:
         raise AquagemProtocolError(
             f"Invalid extended Modbus frame length ({len(reply)} bytes): {reply.hex(' ')}"
@@ -186,16 +212,24 @@ def decode_pump_modbus_extended(reply: bytes, unit: int) -> tuple[int, int, int]
 
 
 class AquagemClient:
-    """Small stateless TCP client with read-only protocol auto-detection."""
+    """Protocol client supporting pluggable TCP or serial byte transports."""
 
     def __init__(
         self,
-        host: str,
-        port: int,
+        host: str | None = None,
+        port: int | None = None,
         timeout: float = 5.0,
         protocol: str | None = None,
         modbus_unit: int | None = None,
+        *,
+        transport: AquagemTransport | None = None,
     ) -> None:
+        if transport is None:
+            if host is None or port is None:
+                raise ValueError("TCP host and port are required without a transport")
+            transport = TcpTransport(host, port)
+
+        self.transport = transport
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -203,6 +237,12 @@ class AquagemClient:
         self.modbus_unit = modbus_unit or PUMP_MODBUS_DEFAULT_UNIT
         self._lock = asyncio.Lock()
         self._extended_modbus_supported: bool | None = None
+        self._extended_modbus_retry_after = 0.0
+
+    @property
+    def endpoint(self) -> str:
+        """Human-readable active endpoint."""
+        return self.transport.endpoint
 
     @property
     def is_pump_modbus(self) -> bool:
@@ -232,21 +272,19 @@ class AquagemClient:
             return "iSaver Power 1100"
         return "Aquagem Pump"
 
-    async def test_connection(self) -> None:
-        """Check that the TCP gateway accepts a connection."""
+    async def async_close(self) -> None:
+        """Release transport resources."""
         async with self._lock:
-            writer = None
+            await self.transport.close()
+
+    async def test_connection(self) -> None:
+        """Check that the configured transport can be opened."""
+        async with self._lock:
             try:
-                _, writer = await asyncio.wait_for(
-                    asyncio.open_connection(self.host, self.port), self.timeout
-                )
+                await self.transport.test_connection(self.timeout)
             except (OSError, TimeoutError, asyncio.TimeoutError) as err:
                 detail = str(err) or f"Connection timed out ({self.timeout:g} s)"
                 raise AquagemConnectionError(detail) from err
-            finally:
-                if writer is not None:
-                    writer.close()
-                    await writer.wait_closed()
 
     async def _exchange(
         self,
@@ -257,15 +295,9 @@ class AquagemClient:
     ) -> bytes:
         exchange_timeout = self.timeout if timeout is None else timeout
         async with self._lock:
-            writer = None
             try:
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(self.host, self.port), exchange_timeout
-                )
-                writer.write(request)
-                await writer.drain()
-                reply = await asyncio.wait_for(
-                    reader.readexactly(reply_length), exchange_timeout
+                return await self.transport.exchange(
+                    request, reply_length, exchange_timeout
                 )
             except asyncio.IncompleteReadError as err:
                 partial = err.partial
@@ -275,29 +307,15 @@ class AquagemClient:
             except (OSError, TimeoutError, asyncio.TimeoutError) as err:
                 detail = str(err) or f"Response timed out ({exchange_timeout:g} s)"
                 raise AquagemConnectionError(detail) from err
-            finally:
-                if writer is not None:
-                    writer.close()
-                    await writer.wait_closed()
-        return reply
 
     async def _send(self, request: bytes) -> None:
         """Send an iSaver write frame without requiring an acknowledgement."""
         async with self._lock:
-            writer = None
             try:
-                _, writer = await asyncio.wait_for(
-                    asyncio.open_connection(self.host, self.port), self.timeout
-                )
-                writer.write(request)
-                await writer.drain()
+                await self.transport.send(request, self.timeout)
             except (OSError, TimeoutError, asyncio.TimeoutError) as err:
                 detail = str(err) or f"Connection timed out ({self.timeout:g} s)"
                 raise AquagemConnectionError(detail) from err
-            finally:
-                if writer is not None:
-                    writer.close()
-                    await writer.wait_closed()
 
     async def _read_isaver_status(self, timeout: float | None = None) -> AquagemStatus:
         reply = await self._exchange(
@@ -346,18 +364,28 @@ class AquagemClient:
         )
         status = decode_pump_modbus_status(reply, unit)
 
-        # V1.5 adds useful read-only registers 2007..2009. Probe them without
-        # making them a requirement for the generic Aquagem Modbus profile so
-        # older/alternate register maps continue to work.
-        if self._extended_modbus_supported is not False:
+        # V1.5 adds useful read-only registers 2007..2009. Probe them separately
+        # so older register maps stay usable. Explicit "illegal address/function"
+        # exceptions disable the extension; transient failures are retried later.
+        now = monotonic()
+        if (
+            self._extended_modbus_supported is not False
+            and now >= self._extended_modbus_retry_after
+        ):
             try:
-                energy_raw, mode_code, software_version = await self._read_pump_modbus_extended(
-                    unit, timeout=timeout
+                energy_raw, mode_code, software_version = (
+                    await self._read_pump_modbus_extended(unit, timeout=timeout)
                 )
+            except AquagemModbusException as err:
+                if err.exception_code in (0x01, 0x02, 0x03):
+                    self._extended_modbus_supported = False
+                else:
+                    self._extended_modbus_retry_after = now + 300.0
             except AquagemError:
-                self._extended_modbus_supported = False
+                self._extended_modbus_retry_after = now + 300.0
             else:
                 self._extended_modbus_supported = True
+                self._extended_modbus_retry_after = 0.0
                 status = replace(
                     status,
                     energy_raw=energy_raw,
@@ -382,11 +410,14 @@ class AquagemClient:
 
         # Standard Modbus pump signature. 0xAA is the common/default address,
         # so try it first before scanning the documented configurable A0..BF range.
-        units = [PUMP_MODBUS_DEFAULT_UNIT, *(
-            unit
-            for unit in range(PUMP_MODBUS_UNIT_MIN, PUMP_MODBUS_UNIT_MAX + 1)
-            if unit != PUMP_MODBUS_DEFAULT_UNIT
-        )]
+        units = [
+            PUMP_MODBUS_DEFAULT_UNIT,
+            *(
+                unit
+                for unit in range(PUMP_MODBUS_UNIT_MIN, PUMP_MODBUS_UNIT_MAX + 1)
+                if unit != PUMP_MODBUS_DEFAULT_UNIT
+            ),
+        ]
         for index, unit in enumerate(units):
             timeout = min(self.timeout, 0.8 if index == 0 else 0.18)
             try:
@@ -400,7 +431,9 @@ class AquagemClient:
             return status
 
         raise AquagemProtocolError(
-            "No supported Aquagem protocol signature detected (" + "; ".join(errors) + ")"
+            "No supported Aquagem protocol signature detected ("
+            + "; ".join(errors)
+            + ")"
         )
 
     async def validate_forced_protocol(self) -> AquagemStatus:
@@ -443,6 +476,7 @@ class AquagemClient:
             )
         )
         reply = await self._exchange(frame(body), 8)
+        _raise_if_modbus_exception(reply, unit, PUMP_MODBUS_WRITE_FUNCTION)
         _validate_crc(reply)
         expected = bytes(
             (
@@ -470,7 +504,8 @@ class AquagemClient:
 
         if speed != OFF_COMMAND and not MIN_SPEED <= speed <= MAX_SPEED:
             raise ValueError(
-                f"iSaver speed must be {OFF_COMMAND} (OFF) or {MIN_SPEED}..{MAX_SPEED} rpm"
+                f"iSaver speed must be {OFF_COMMAND} (OFF) or "
+                f"{MIN_SPEED}..{MAX_SPEED} rpm"
             )
         body = WRITE_SPEED_PREFIX + speed.to_bytes(2, "big")
         await self._send(frame(body))

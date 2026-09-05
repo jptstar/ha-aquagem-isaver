@@ -11,46 +11,107 @@ from .const import (
     CONF_MODBUS_UNIT,
     CONF_PROTOCOL,
     CONF_SCAN_INTERVAL,
+    CONF_SERIAL_PORT,
+    CONF_TRANSPORT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
+    PROTOCOL_PUMP_MODBUS,
+    PUMP_MODBUS_BAUDRATE,
     PUMP_MODBUS_DEFAULT_UNIT,
+    PUMP_MODBUS_RTU_GUARD_SECONDS,
+    TRANSPORT_SERIAL,
+    TRANSPORT_TCP,
 )
 from .coordinator import AquagemCoordinator
 from .protocol import AquagemClient
+from .transport import SerialTransport
 
 
-async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate legacy 0.2.x entries to the protocol-aware config format."""
-    if entry.version > 2:
+def _serial_title_suffix(serial_port: str) -> str:
+    clean = serial_port.split("?", 1)[0].rstrip("/")
+    return clean.rsplit("/", 1)[-1] or serial_port
+
+
+def _entry_title(data: dict, fallback_title: str) -> str:
+    """Build a compact title without changing config-entry identity."""
+    name = data.get(CONF_NAME, fallback_title)
+    if data.get(CONF_TRANSPORT, TRANSPORT_TCP) == TRANSPORT_SERIAL:
+        serial_port = data.get(CONF_SERIAL_PORT)
+        if serial_port:
+            return f"{name} {_serial_title_suffix(str(serial_port))}"
+        return str(name)
+
+    host = data.get(CONF_HOST)
+    return f"{name} {host}" if host else str(name)
+
+
+def _build_client(entry: ConfigEntry) -> AquagemClient:
+    """Create the protocol client for the entry's stored transport."""
+    if entry.data.get(CONF_TRANSPORT, TRANSPORT_TCP) == TRANSPORT_SERIAL:
+        return AquagemClient(
+            protocol=entry.data.get(CONF_PROTOCOL, PROTOCOL_PUMP_MODBUS),
+            modbus_unit=entry.data.get(
+                CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
+            ),
+            transport=SerialTransport(
+                entry.data[CONF_SERIAL_PORT],
+                PUMP_MODBUS_BAUDRATE,
+                inter_frame_delay=PUMP_MODBUS_RTU_GUARD_SECONDS,
+            ),
+        )
+
+    return AquagemClient(
+        entry.data[CONF_HOST],
+        entry.data[CONF_PORT],
+        protocol=entry.data.get(CONF_PROTOCOL),
+        modbus_unit=entry.data.get(
+            CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
+        ),
+    )
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> bool:
+    """Migrate older entries to the transport-aware config format."""
+    if entry.version > 3:
         return False
 
-    if entry.version < 2:
+    if entry.version < 3:
         data = dict(entry.data)
+
         if CONF_NAME not in data:
             clean_name = entry.title
             host = str(data.get(CONF_HOST, ""))
             if host and clean_name.endswith(f" {host}"):
                 clean_name = clean_name[: -(len(host) + 1)]
             data[CONF_NAME] = clean_name
-        hass.config_entries.async_update_entry(entry, data=data, version=2)
+
+        # Every entry created before 0.4 used a transparent TCP gateway.
+        data.setdefault(CONF_TRANSPORT, TRANSPORT_TCP)
+
+        hass.config_entries.async_update_entry(
+            entry,
+            data=data,
+            version=3,
+        )
 
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> bool:
     """Set up from a config entry."""
-    client = AquagemClient(
-        entry.data[CONF_HOST],
-        entry.data[CONF_PORT],
-        protocol=entry.data.get(CONF_PROTOCOL),
-        modbus_unit=entry.data.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT),
-    )
+    client = _build_client(entry)
     coordinator = AquagemCoordinator(
-        hass, client, entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        hass,
+        client,
+        entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
 
-    # Legacy entries do not yet store a protocol. The first successful refresh
+    # Legacy entries may not yet store a protocol. The first successful refresh
     # detects it read-only; then persist the result so normal polling never
     # needs to probe multiple profiles again.
     await coordinator.async_refresh()
@@ -59,24 +120,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data = dict(entry.data)
         changed = False
 
+        if data.get(CONF_TRANSPORT) is None:
+            data[CONF_TRANSPORT] = TRANSPORT_TCP
+            changed = True
+
         if data.get(CONF_PROTOCOL) != client.protocol:
             data[CONF_PROTOCOL] = client.protocol
             changed = True
-        if client.is_pump_modbus and data.get(CONF_MODBUS_UNIT) != client.modbus_unit:
+
+        if (
+            client.is_pump_modbus
+            and data.get(CONF_MODBUS_UNIT) != client.modbus_unit
+        ):
             data[CONF_MODBUS_UNIT] = client.modbus_unit
             changed = True
 
         if CONF_NAME not in data:
             clean_name = entry.title
-            host = str(entry.data[CONF_HOST])
-            if clean_name.endswith(f" {host}"):
+            host = str(data.get(CONF_HOST, ""))
+            if host and clean_name.endswith(f" {host}"):
                 clean_name = clean_name[: -(len(host) + 1)]
             data[CONF_NAME] = clean_name
             changed = True
 
-        title = f"{data[CONF_NAME]} {entry.data[CONF_HOST]}"
+        title = _entry_title(data, entry.title)
         if changed or entry.title != title:
-            hass.config_entries.async_update_entry(entry, data=data, title=title)
+            hass.config_entries.async_update_entry(
+                entry,
+                data=data,
+                title=title,
+            )
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
@@ -112,16 +185,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_reload_entry(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
     """Reload after an option changes."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload an entry."""
+async def async_unload_entry(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> bool:
+    """Unload an entry and release any persistent serial connection."""
+    coordinator = hass.data[DOMAIN].get(entry.entry_id)
     unloaded = await hass.config_entries.async_unload_platforms(
         entry, [Platform(platform) for platform in PLATFORMS]
     )
     if unloaded:
+        if coordinator is not None:
+            await coordinator.client.async_close()
         hass.data[DOMAIN].pop(entry.entry_id)
     return unloaded
