@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="format-detection" content="telephone=no">
   <title>Aquagem Home Assistant — DM15, INVERsilence & iSaver local RS485 control</title>
   <meta name="description" content="Local Home Assistant integration for Aquagem DM15 / INVERsilence and iSaver Power 1100 pool pumps via RS485/Modbus. HACS, no cloud, power sensor.">
   <meta name="keywords" content="Aquagem Home Assistant, Aquagem DM15 Home Assistant, INVERsilence Home Assistant, iSaver Power 1100 Home Assistant, Aquagem RS485, Aquagem Modbus, Aquagem register 2004 power, pool pump Home Assistant, HACS pool pump">
@@ -129,6 +130,8 @@
     th{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.07em}
     td{overflow-wrap:anywhere}
     tr:last-child td{border-bottom:0}
+    .control-lines{display:flex;flex-direction:column;gap:2px}
+    .control-lines .nowrap{white-space:nowrap}
     .compat-callout{min-width:0;margin-top:22px;padding:18px 20px;border:1px solid #bfe7d6;border-radius:16px;background:var(--green-soft);color:#0d684d}
     .compat-callout strong{display:block;margin-bottom:5px;font-size:18px}
     .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}
@@ -242,8 +245,8 @@
     <table class="responsive-table" aria-label="Validated Aquagem pump compatibility">
       <thead><tr><th>Validated hardware</th><th>Protocol</th><th>RS485</th><th>Control</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td data-label="Hardware"><strong>iSaver Power 1100</strong></td><td data-label="Protocol">Proprietary C3 / D0</td><td data-label="RS485"><code>1200-8-N-1</code></td><td data-label="Control">1200–2900 rpm · OFF=1</td><td data-label="Status">✅ Validated</td></tr>
-        <tr><td data-label="Hardware"><strong>DM15 / INVERsilence</strong></td><td data-label="Protocol">Modbus RTU 03 / 10</td><td data-label="RS485"><code>9600-8-N-1</code></td><td data-label="Control">30–100% in 5% steps · OFF=0</td><td data-label="Status">✅ Validated</td></tr>
+        <tr><td data-label="Hardware"><strong>iSaver Power 1100</strong></td><td data-label="Protocol">Proprietary C3 / D0</td><td data-label="RS485"><code>1200-8-N-1</code></td><td data-label="Control"><span class="control-lines"><span class="nowrap">1200–2900 rpm</span><span>OFF=1</span></span></td><td data-label="Status">✅ Validated</td></tr>
+        <tr><td data-label="Hardware"><strong>DM15 / INVERsilence</strong></td><td data-label="Protocol">Modbus RTU 03 / 10</td><td data-label="RS485"><code>9600-8-N-1</code></td><td data-label="Control"><span class="control-lines"><span>30–100% in 5% steps</span><span>OFF=0</span></span></td><td data-label="Status">✅ Validated</td></tr>
       </tbody>
     </table>
     <div class="compat-callout"><strong>Your Aquagem model is not listed?</strong><span>Automatic detection checks protocol structure, CRC and coherent register values. Other Aquagem pumps using the same validated register layout may be compatible even when their commercial model name has not yet been field-tested.</span></div>
