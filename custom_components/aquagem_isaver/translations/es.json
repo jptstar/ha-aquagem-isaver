@@ -3,16 +3,31 @@
     "step": {
       "user": {
         "title": "Bomba Aquagem",
-        "description": "Conexión mediante una pasarela RS485/TCP transparente. La detección del protocolo es automática y de solo lectura. WaveShare: TCP Server, puerto 502, 8N1, Protocol None. Utilice 1200 baudios para iSaver C3/D0 o 9600 baudios para DM15 / Modbus estándar de bombas Aquagem.",
+        "description": "Elija cómo Home Assistant accede a la bomba. Las pasarelas RS485/TCP existentes siguen siendo compatibles. La conexión serie directa es experimental en esta alpha y se limita a bombas DM / Modbus RTU Aquagem estándar a 9600-8-N-1.",
         "data": {
           "name": "Nombre del dispositivo",
+          "transport": "Tipo de conexión"
+        }
+      },
+      "tcp": {
+        "title": "Pasarela RS485/TCP",
+        "description": "Conexión mediante una pasarela RS485/TCP transparente. La detección del protocolo es automática y de solo lectura. WaveShare: TCP Server, puerto 502, 8N1, Protocol None. Utilice 1200 baudios para iSaver C3/D0 o 9600 baudios para DM15 / Modbus estándar Aquagem.",
+        "data": {
           "host": "Dirección IP",
           "port": "Puerto TCP"
         }
       },
+      "serial": {
+        "title": "Serie directa Modbus RTU",
+        "description": "Alpha 0.4 experimental: conecte una bomba DM / Modbus estándar Aquagem directamente mediante USB-RS485 o un puerto serie de Home Assistant. Los parámetros están fijados a 9600-8-N-1. La conexión serie directa iSaver C3/D0 aún no está habilitada.",
+        "data": {
+          "serial_port": "Puerto serie",
+          "modbus_unit": "Dirección Modbus (160–191 / 0xA0–0xBF)"
+        }
+      },
       "manual": {
         "title": "Selección manual del protocolo",
-        "description": "La detección automática por firma no ha identificado la bomba. Seleccione un perfil conocido únicamente después de comprobar la velocidad serie de la pasarela WaveShare. Esta validación sigue siendo de solo lectura.",
+        "description": "La detección automática por firma no ha identificado la bomba mediante la pasarela TCP. Seleccione un perfil conocido después de comprobar la velocidad serie de la pasarela. Esta validación sigue siendo de solo lectura.",
         "data": {
           "protocol": "Perfil de la bomba",
           "modbus_unit": "Dirección Modbus (160–191 / 0xA0–0xBF)"
@@ -20,22 +35,33 @@
       },
       "reconfigure": {
         "title": "Reconfigurar la bomba Aquagem",
-        "description": "Cambie el nombre del dispositivo o la conexión de la pasarela RS485/TCP. El protocolo guardado se valida antes de guardar los cambios.",
+        "description": "Cambie el nombre del dispositivo o la conexión de la pasarela RS485/TCP. Esta alpha mantiene el tipo de transporte actual durante la reconfiguración.",
         "data": {
           "name": "Nombre del dispositivo",
           "host": "Dirección IP",
           "port": "Puerto TCP"
         }
+      },
+      "reconfigure_serial": {
+        "title": "Reconfigurar la conexión serie Aquagem",
+        "description": "Cambie el nombre, el puerto serie o la dirección Modbus. En esta alpha, la conexión serie directa se limita a Modbus RTU Aquagem estándar a 9600-8-N-1.",
+        "data": {
+          "name": "Nombre del dispositivo",
+          "serial_port": "Puerto serie",
+          "modbus_unit": "Dirección Modbus (160–191 / 0xA0–0xBF)"
+        }
       }
     },
     "error": {
       "cannot_connect": "No se ha podido comunicar con la pasarela o la bomba configurada.",
-      "cannot_validate_manual": "El perfil seleccionado no ha devuelto la firma de protocolo de solo lectura esperada. Compruebe la velocidad serie de la pasarela WaveShare, el cableado RS485 y la dirección Modbus.",
-      "endpoint_in_use": "Esta dirección IP y este puerto TCP ya están siendo utilizados por otra entrada de Bomba Aquagem."
+      "cannot_validate_manual": "El perfil seleccionado no ha devuelto la firma de protocolo de solo lectura esperada. Compruebe la velocidad serie de la pasarela, el cableado RS485 y la dirección Modbus.",
+      "cannot_validate_serial": "El puerto serie se abre, pero no se ha validado la firma Modbus RTU Aquagem esperada. Compruebe el cableado USB-RS485, 9600-8-N-1 y la dirección Modbus.",
+      "endpoint_in_use": "Esta dirección IP y este puerto TCP ya están siendo utilizados por otra entrada de Bomba Aquagem.",
+      "serial_endpoint_in_use": "Este puerto serie ya está siendo utilizado por otra entrada de Bomba Aquagem."
     },
     "abort": {
-      "already_configured": "Esta pasarela ya está configurada.",
-      "manual_without_gateway": "La selección manual del protocolo requiere primero los datos de la pasarela."
+      "already_configured": "Esta conexión ya está configurada.",
+      "manual_without_gateway": "La selección manual del protocolo requiere primero los datos de la pasarela TCP."
     }
   },
   "options": {
