@@ -12,6 +12,12 @@ CONF_DAY_SPEED = "day_speed"
 CONF_MAX_PRESET_SPEED = "max_preset_speed"
 CONF_PROTOCOL = "protocol"
 CONF_MODBUS_UNIT = "modbus_unit"
+CONF_TRANSPORT = "transport"
+CONF_SERIAL_PORT = "serial_port"
+
+TRANSPORT_TCP = "tcp"
+TRANSPORT_SERIAL = "serial"
+SUPPORTED_TRANSPORTS = (TRANSPORT_TCP, TRANSPORT_SERIAL)
 
 DEFAULT_NAME = "Aquagem Pump"
 DEFAULT_PORT = 502
@@ -31,6 +37,7 @@ MIN_SPEED = 1200
 MAX_SPEED = 2900
 SPEED_STEP = 100
 OFF_COMMAND = 1
+ISAVER_BAUDRATE = 1200
 
 DEFAULT_MIN_OPERATING_SPEED = 1200
 DEFAULT_MAX_OPERATING_SPEED = 2900
@@ -74,6 +81,11 @@ PUMP_MODBUS_CAPACITY_STEP = 5
 PUMP_MODBUS_DEFAULT_UNIT = 0xAA
 PUMP_MODBUS_UNIT_MIN = 0xA0
 PUMP_MODBUS_UNIT_MAX = 0xBF
+PUMP_MODBUS_BAUDRATE = 9600
+
+# Modbus RTU requires at least 3.5 character times of silence. At 9600-8-N-1
+# that is about 4 ms; use 5 ms to keep direct serial transactions conservative.
+PUMP_MODBUS_RTU_GUARD_SECONDS = 0.005
 
 # Aquagem RS485 Modbus V1.5 (for V1.0.0), supplied for DM-family validation.
 # These registers are read separately so older/alternate Aquagem register maps
