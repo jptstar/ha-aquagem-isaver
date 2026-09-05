@@ -3,16 +3,31 @@
     "step": {
       "user": {
         "title": "Aquagem Pump",
-        "description": "Connect through a transparent RS485/TCP gateway. Protocol detection is automatic and read-only. WaveShare: TCP Server, port 502, 8N1, Protocol None. Use 1200 baud for iSaver C3/D0 or 9600 baud for DM15 / standard Aquagem pump Modbus.",
+        "description": "Choose how Home Assistant reaches the pump. Existing RS485/TCP gateways remain supported. Direct serial is experimental in this alpha and is limited to DM-family / standard Aquagem Modbus RTU at 9600-8-N-1.",
         "data": {
           "name": "Device name",
+          "transport": "Connection type"
+        }
+      },
+      "tcp": {
+        "title": "RS485/TCP gateway",
+        "description": "Connect through a transparent RS485/TCP gateway. Protocol detection is automatic and read-only. WaveShare: TCP Server, port 502, 8N1, Protocol None. Use 1200 baud for iSaver C3/D0 or 9600 baud for DM15 / standard Aquagem Modbus.",
+        "data": {
           "host": "IP address",
           "port": "TCP port"
         }
       },
+      "serial": {
+        "title": "Direct Modbus RTU serial",
+        "description": "Experimental 0.4 alpha: connect a DM-family / standard Aquagem Modbus pump directly through a USB-RS485 or Home Assistant serial port. Serial settings are fixed to 9600-8-N-1. iSaver C3/D0 direct serial is not enabled yet.",
+        "data": {
+          "serial_port": "Serial port",
+          "modbus_unit": "Modbus address (160–191 / 0xA0–0xBF)"
+        }
+      },
       "manual": {
         "title": "Manual protocol fallback",
-        "description": "Automatic signature detection did not identify the pump. Select a known profile only after checking the WaveShare serial baud rate. This validation remains read-only.",
+        "description": "Automatic signature detection did not identify the pump through the TCP gateway. Select a known profile only after checking the gateway serial baud rate. This validation remains read-only.",
         "data": {
           "protocol": "Pump profile",
           "modbus_unit": "Modbus address (160–191 / 0xA0–0xBF)"
@@ -20,22 +35,33 @@
       },
       "reconfigure": {
         "title": "Reconfigure Aquagem Pump",
-        "description": "Change the device name or RS485/TCP gateway connection. The stored pump protocol is validated before saving.",
+        "description": "Change the device name or RS485/TCP gateway connection. This alpha keeps the existing transport type unchanged during reconfiguration.",
         "data": {
           "name": "Device name",
           "host": "IP address",
           "port": "TCP port"
         }
+      },
+      "reconfigure_serial": {
+        "title": "Reconfigure Aquagem Pump serial connection",
+        "description": "Change the device name, serial port or Modbus address. Direct serial remains limited to standard Aquagem Modbus RTU at 9600-8-N-1 in this alpha.",
+        "data": {
+          "name": "Device name",
+          "serial_port": "Serial port",
+          "modbus_unit": "Modbus address (160–191 / 0xA0–0xBF)"
+        }
       }
     },
     "error": {
       "cannot_connect": "Could not communicate with the configured gateway/pump.",
-      "cannot_validate_manual": "The selected profile did not return its expected read-only protocol signature. Check the WaveShare baud rate, RS485 wiring and Modbus address.",
-      "endpoint_in_use": "This IP address and TCP port are already used by another Aquagem Pump entry."
+      "cannot_validate_manual": "The selected profile did not return its expected read-only protocol signature. Check the gateway baud rate, RS485 wiring and Modbus address.",
+      "cannot_validate_serial": "The selected serial port opened, but the expected Aquagem Modbus RTU signature was not validated. Check USB-RS485 wiring, 9600-8-N-1 and the Modbus address.",
+      "endpoint_in_use": "This IP address and TCP port are already used by another Aquagem Pump entry.",
+      "serial_endpoint_in_use": "This serial port is already used by another Aquagem Pump entry."
     },
     "abort": {
-      "already_configured": "This gateway is already configured.",
-      "manual_without_gateway": "Manual protocol selection requires gateway details first."
+      "already_configured": "This connection is already configured.",
+      "manual_without_gateway": "Manual protocol selection requires TCP gateway details first."
     }
   },
   "options": {
