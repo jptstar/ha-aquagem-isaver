@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Pompe Aquagem",
-        "description": "Choisissez comment Home Assistant accède à la pompe. Les passerelles RS485/TCP existantes restent prises en charge. La liaison série directe est expérimentale dans cette alpha et limitée aux pompes DM / Modbus RTU Aquagem standard en 9600-8-N-1.",
+        "description": "Choisissez comment Home Assistant accède à la pompe. Les passerelles RS485/TCP existantes restent prises en charge. La liaison série directe prend maintenant en charge le profil iSaver C3/D0 validé en 1200-8-N-1 ainsi que les pompes DM / Modbus RTU Aquagem standard en 9600-8-N-1.",
         "data": {
           "name": "Nom de l'appareil",
           "transport": "Type de connexion"
@@ -18,11 +18,12 @@
         }
       },
       "serial": {
-        "title": "Série directe Modbus RTU",
-        "description": "Alpha 0.4 expérimentale : connectez une pompe DM / Modbus standard Aquagem directement via un adaptateur USB-RS485 ou un port série Home Assistant. Les paramètres sont fixés à 9600-8-N-1. La liaison série directe iSaver C3/D0 n'est pas encore activée.",
+        "title": "Série directe / USB-RS485",
+        "description": "Sélectionnez le port série et le profil de pompe. iSaver C3/D0 utilise 1200-8-N-1 ; le Modbus RTU Aquagem utilise 9600-8-N-1. Pour Modbus, saisissez l'adresse esclave en décimal 160–191 ou en hexadécimal 0xA0–0xBF. Le champ d'adresse est ignoré pour iSaver.",
         "data": {
           "serial_port": "Port série",
-          "modbus_unit": "Adresse Modbus (160–191 / 0xA0–0xBF)"
+          "protocol": "Profil de pompe",
+          "modbus_unit": "Adresse Modbus (décimal ou hexadécimal)"
         }
       },
       "manual": {
@@ -44,18 +45,19 @@
       },
       "reconfigure_serial": {
         "title": "Reconfigurer la liaison série Aquagem",
-        "description": "Modifiez le nom, le port série ou l'adresse Modbus. Dans cette alpha, la série directe reste limitée au Modbus RTU Aquagem standard en 9600-8-N-1.",
+        "description": "Modifiez le nom de l'appareil ou le port série. Les entrées Modbus peuvent également modifier l'adresse esclave. Le profil de pompe mémorisé reste inchangé pendant la reconfiguration.",
         "data": {
           "name": "Nom de l'appareil",
           "serial_port": "Port série",
-          "modbus_unit": "Adresse Modbus (160–191 / 0xA0–0xBF)"
+          "modbus_unit": "Adresse Modbus (décimal ou hexadécimal)"
         }
       }
     },
     "error": {
       "cannot_connect": "Impossible de communiquer avec la passerelle ou la pompe configurée.",
       "cannot_validate_manual": "Le profil sélectionné n'a pas renvoyé la signature attendue en lecture seule. Vérifiez la vitesse série de la passerelle, le câblage RS485 et l'adresse Modbus.",
-      "cannot_validate_serial": "Le port série s'ouvre, mais la signature Modbus RTU Aquagem attendue n'a pas été validée. Vérifiez le câblage USB-RS485, 9600-8-N-1 et l'adresse Modbus.",
+      "cannot_validate_serial": "Le port série s'ouvre, mais la signature du protocole Aquagem attendue n'a pas été validée. Vérifiez le câblage RS485 et le profil sélectionné : 1200-8-N-1 pour iSaver C3/D0 ou 9600-8-N-1 pour Modbus RTU Aquagem.",
+      "invalid_modbus_address": "Adresse Modbus invalide. Saisissez 160–191 en décimal ou 0xA0–0xBF en hexadécimal.",
       "endpoint_in_use": "Cette adresse IP et ce port TCP sont déjà utilisés par une autre entrée Pompe Aquagem.",
       "serial_endpoint_in_use": "Ce port série est déjà utilisé par une autre entrée Pompe Aquagem."
     },
