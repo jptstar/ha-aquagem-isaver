@@ -3,16 +3,31 @@
     "step": {
       "user": {
         "title": "Pompe Aquagem",
-        "description": "Connexion via une passerelle RS485/TCP transparente. La détection du protocole est automatique et en lecture seule. WaveShare : TCP Server, port 502, 8N1, Protocol None. Utilisez 1200 bauds pour iSaver C3/D0 ou 9600 bauds pour DM15 / Modbus standard des pompes Aquagem.",
+        "description": "Choisissez comment Home Assistant accède à la pompe. Les passerelles RS485/TCP existantes restent prises en charge. La liaison série directe est expérimentale dans cette alpha et limitée aux pompes DM / Modbus RTU Aquagem standard en 9600-8-N-1.",
         "data": {
           "name": "Nom de l'appareil",
+          "transport": "Type de connexion"
+        }
+      },
+      "tcp": {
+        "title": "Passerelle RS485/TCP",
+        "description": "Connexion via une passerelle RS485/TCP transparente. La détection du protocole est automatique et en lecture seule. WaveShare : TCP Server, port 502, 8N1, Protocol None. Utilisez 1200 bauds pour iSaver C3/D0 ou 9600 bauds pour DM15 / Modbus standard Aquagem.",
+        "data": {
           "host": "Adresse IP",
           "port": "Port TCP"
         }
       },
+      "serial": {
+        "title": "Série directe Modbus RTU",
+        "description": "Alpha 0.4 expérimentale : connectez une pompe DM / Modbus standard Aquagem directement via un adaptateur USB-RS485 ou un port série Home Assistant. Les paramètres sont fixés à 9600-8-N-1. La liaison série directe iSaver C3/D0 n'est pas encore activée.",
+        "data": {
+          "serial_port": "Port série",
+          "modbus_unit": "Adresse Modbus (160–191 / 0xA0–0xBF)"
+        }
+      },
       "manual": {
         "title": "Sélection manuelle du protocole",
-        "description": "La détection automatique par signature n'a pas identifié la pompe. Sélectionnez un profil connu après avoir vérifié la vitesse série du WaveShare. Cette validation reste en lecture seule.",
+        "description": "La détection automatique par signature n'a pas identifié la pompe via la passerelle TCP. Sélectionnez un profil connu après avoir vérifié la vitesse série de la passerelle. Cette validation reste en lecture seule.",
         "data": {
           "protocol": "Profil de pompe",
           "modbus_unit": "Adresse Modbus (160–191 / 0xA0–0xBF)"
@@ -20,22 +35,33 @@
       },
       "reconfigure": {
         "title": "Reconfigurer la pompe Aquagem",
-        "description": "Modifiez le nom de l'appareil ou la connexion à la passerelle RS485/TCP. Le protocole mémorisé est validé avant l'enregistrement.",
+        "description": "Modifiez le nom de l'appareil ou la connexion de la passerelle RS485/TCP. Cette alpha conserve le type de transport actuel lors de la reconfiguration.",
         "data": {
           "name": "Nom de l'appareil",
           "host": "Adresse IP",
           "port": "Port TCP"
         }
+      },
+      "reconfigure_serial": {
+        "title": "Reconfigurer la liaison série Aquagem",
+        "description": "Modifiez le nom, le port série ou l'adresse Modbus. Dans cette alpha, la série directe reste limitée au Modbus RTU Aquagem standard en 9600-8-N-1.",
+        "data": {
+          "name": "Nom de l'appareil",
+          "serial_port": "Port série",
+          "modbus_unit": "Adresse Modbus (160–191 / 0xA0–0xBF)"
+        }
       }
     },
     "error": {
       "cannot_connect": "Impossible de communiquer avec la passerelle ou la pompe configurée.",
-      "cannot_validate_manual": "Le profil sélectionné n'a pas renvoyé la signature attendue en lecture seule. Vérifiez la vitesse série du WaveShare, le câblage RS485 et l'adresse Modbus.",
-      "endpoint_in_use": "Cette adresse IP et ce port TCP sont déjà utilisés par une autre entrée Pompe Aquagem."
+      "cannot_validate_manual": "Le profil sélectionné n'a pas renvoyé la signature attendue en lecture seule. Vérifiez la vitesse série de la passerelle, le câblage RS485 et l'adresse Modbus.",
+      "cannot_validate_serial": "Le port série s'ouvre, mais la signature Modbus RTU Aquagem attendue n'a pas été validée. Vérifiez le câblage USB-RS485, 9600-8-N-1 et l'adresse Modbus.",
+      "endpoint_in_use": "Cette adresse IP et ce port TCP sont déjà utilisés par une autre entrée Pompe Aquagem.",
+      "serial_endpoint_in_use": "Ce port série est déjà utilisé par une autre entrée Pompe Aquagem."
     },
     "abort": {
-      "already_configured": "Cette passerelle est déjà configurée.",
-      "manual_without_gateway": "La sélection manuelle du protocole nécessite d'abord les informations de la passerelle."
+      "already_configured": "Cette connexion est déjà configurée.",
+      "manual_without_gateway": "La sélection manuelle du protocole nécessite d'abord les informations de la passerelle TCP."
     }
   },
   "options": {
