@@ -1,12 +1,16 @@
 {
   "domain": "aquagem_isaver",
   "name": "Aquagem Pump",
-  "codeowners": ["@jptstar"],
+  "codeowners": [
+    "@jptstar"
+  ],
   "config_flow": true,
   "documentation": "https://jptstar.github.io/ha-aquagem-isaver/",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/jptstar/ha-aquagem-isaver/issues",
-  "requirements": [],
-  "version": "0.3.5-beta.3"
+  "requirements": [
+    "serialx==1.8.2"
+  ],
+  "version": "0.4.0-alpha.1"
 }
