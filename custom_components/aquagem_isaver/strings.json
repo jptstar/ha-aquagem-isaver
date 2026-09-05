@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Aquagem Pump",
-        "description": "Choose how Home Assistant reaches the pump. Existing RS485/TCP gateways remain supported. Direct serial is experimental in this alpha and is limited to DM-family / standard Aquagem Modbus RTU at 9600-8-N-1.",
+        "description": "Choose how Home Assistant reaches the pump. Existing RS485/TCP gateways remain supported. Direct serial now supports the validated iSaver C3/D0 profile at 1200-8-N-1 and DM-family / standard Aquagem Modbus RTU at 9600-8-N-1.",
         "data": {
           "name": "Device name",
           "transport": "Connection type"
@@ -18,11 +18,12 @@
         }
       },
       "serial": {
-        "title": "Direct Modbus RTU serial",
-        "description": "Experimental 0.4 alpha: connect a DM-family / standard Aquagem Modbus pump directly through a USB-RS485 or Home Assistant serial port. Serial settings are fixed to 9600-8-N-1. iSaver C3/D0 direct serial is not enabled yet.",
+        "title": "Direct serial / USB-RS485",
+        "description": "Select the serial port and pump profile. iSaver C3/D0 uses 1200-8-N-1; Aquagem Modbus RTU uses 9600-8-N-1. For Modbus, enter the slave address as decimal 160–191 or hexadecimal 0xA0–0xBF. The address field is ignored for iSaver.",
         "data": {
           "serial_port": "Serial port",
-          "modbus_unit": "Modbus address (160–191 / 0xA0–0xBF)"
+          "protocol": "Pump profile",
+          "modbus_unit": "Modbus address (decimal or hex)"
         }
       },
       "manual": {
@@ -44,18 +45,19 @@
       },
       "reconfigure_serial": {
         "title": "Reconfigure Aquagem Pump serial connection",
-        "description": "Change the device name, serial port or Modbus address. Direct serial remains limited to standard Aquagem Modbus RTU at 9600-8-N-1 in this alpha.",
+        "description": "Change the device name or serial port. Modbus entries can also change the slave address. The stored pump profile is kept unchanged during reconfiguration.",
         "data": {
           "name": "Device name",
           "serial_port": "Serial port",
-          "modbus_unit": "Modbus address (160–191 / 0xA0–0xBF)"
+          "modbus_unit": "Modbus address (decimal or hex)"
         }
       }
     },
     "error": {
       "cannot_connect": "Could not communicate with the configured gateway/pump.",
       "cannot_validate_manual": "The selected profile did not return its expected read-only protocol signature. Check the gateway baud rate, RS485 wiring and Modbus address.",
-      "cannot_validate_serial": "The selected serial port opened, but the expected Aquagem Modbus RTU signature was not validated. Check USB-RS485 wiring, 9600-8-N-1 and the Modbus address.",
+      "cannot_validate_serial": "The selected serial port opened, but the expected Aquagem protocol signature was not validated. Check RS485 wiring and the selected profile: 1200-8-N-1 for iSaver C3/D0 or 9600-8-N-1 for Aquagem Modbus RTU.",
+      "invalid_modbus_address": "Invalid Modbus address. Enter 160–191 in decimal or 0xA0–0xBF in hexadecimal.",
       "endpoint_in_use": "This IP address and TCP port are already used by another Aquagem Pump entry.",
       "serial_endpoint_in_use": "This serial port is already used by another Aquagem Pump entry."
     },
