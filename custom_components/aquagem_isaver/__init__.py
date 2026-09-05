@@ -15,7 +15,10 @@ from .const import (
     CONF_TRANSPORT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    ISAVER_BAUDRATE,
+    ISAVER_SERIAL_GUARD_SECONDS,
     PLATFORMS,
+    PROTOCOL_ISAVER,
     PROTOCOL_PUMP_MODBUS,
     PUMP_MODBUS_BAUDRATE,
     PUMP_MODBUS_DEFAULT_UNIT,
@@ -46,6 +49,22 @@ def _entry_title(data: dict, fallback_title: str) -> str:
     return f"{name} {host}" if host else str(name)
 
 
+def _serial_transport(entry: ConfigEntry) -> SerialTransport:
+    """Create the direct serial transport for the stored protocol profile."""
+    protocol = entry.data.get(CONF_PROTOCOL, PROTOCOL_PUMP_MODBUS)
+    if protocol == PROTOCOL_ISAVER:
+        return SerialTransport(
+            entry.data[CONF_SERIAL_PORT],
+            ISAVER_BAUDRATE,
+            inter_frame_delay=ISAVER_SERIAL_GUARD_SECONDS,
+        )
+    return SerialTransport(
+        entry.data[CONF_SERIAL_PORT],
+        PUMP_MODBUS_BAUDRATE,
+        inter_frame_delay=PUMP_MODBUS_RTU_GUARD_SECONDS,
+    )
+
+
 def _build_client(entry: ConfigEntry) -> AquagemClient:
     """Create the protocol client for the entry's stored transport."""
     if entry.data.get(CONF_TRANSPORT, TRANSPORT_TCP) == TRANSPORT_SERIAL:
@@ -54,11 +73,7 @@ def _build_client(entry: ConfigEntry) -> AquagemClient:
             modbus_unit=entry.data.get(
                 CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
             ),
-            transport=SerialTransport(
-                entry.data[CONF_SERIAL_PORT],
-                PUMP_MODBUS_BAUDRATE,
-                inter_frame_delay=PUMP_MODBUS_RTU_GUARD_SECONDS,
-            ),
+            transport=_serial_transport(entry),
         )
 
     return AquagemClient(
