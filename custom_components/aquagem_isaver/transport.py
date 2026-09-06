@@ -6,8 +6,6 @@ import asyncio
 from time import monotonic
 from typing import Protocol
 
-import serialx
-
 
 class AquagemTransport(Protocol):
     """Byte transport used by the protocol layer."""
@@ -102,7 +100,7 @@ class TcpTransport:
 
 
 class SerialTransport:
-    """Persistent direct serial transport backed by serialx."""
+    """Persistent direct serial transport backed by Home Assistant's serialx."""
 
     def __init__(
         self,
@@ -126,8 +124,17 @@ class SerialTransport:
         if self._reader is not None and self._writer is not None:
             return
 
+        # Serial support is optional for existing TCP installations. Import
+        # serialx only when a serial transport is actually used, so a serial
+        # dependency problem can never prevent a WaveShare/TCP entry from
+        # loading or its config flow from opening.
+        try:
+            from serialx import open_serial_connection
+        except ImportError as err:
+            raise OSError("Home Assistant serial support is unavailable") from err
+
         async with asyncio.timeout(timeout):
-            reader, writer = await serialx.open_serial_connection(
+            reader, writer = await open_serial_connection(
                 url=self.device,
                 baudrate=self.baudrate,
             )
