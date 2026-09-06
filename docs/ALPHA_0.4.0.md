@@ -2,6 +2,14 @@
 
 This alpha series separates protocol handling from the connection transport and adds direct serial / USB-RS485 support.
 
+## 0.4.0-alpha.4
+
+- Harden existing WaveShare / TCP installations after the serial transport introduction.
+- Stop pinning a private `serialx` requirement in the custom integration; Home Assistant's built-in `usb` dependency now owns the compatible serialx version.
+- Import serialx only when a direct serial connection is actually opened.
+- A serial-library problem can therefore no longer prevent an existing TCP pump entry from loading or prevent the TCP config flow from opening.
+- Keep all alpha.3 serial profiles and protocol behavior unchanged.
+
 ## 0.4.0-alpha.3
 
 - Replace the Modbus-address range control with a plain address field.
