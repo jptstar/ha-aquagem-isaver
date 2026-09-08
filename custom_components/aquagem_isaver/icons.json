@@ -4,6 +4,7 @@
       "speed": {"default": "mdi:speedometer"},
       "capacity": {"default": "mdi:speedometer"},
       "fault_code": {"default": "mdi:code-braces"},
+      "operating_hours": {"default": "mdi:timer-outline"},
       "power": {"default": "mdi:flash"},
       "energy_consumption": {"default": "mdi:lightning-bolt-circle"},
       "mode_code": {"default": "mdi:identifier"},
