@@ -15,14 +15,21 @@ from .const import (
     PROTOCOL_ISAVER,
 )
 from .protocol import AquagemClient, AquagemError, AquagemStatus
+from .runtime import AquagemRuntimeTracker
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
-    """Coordinate polling and commands."""
+    """Coordinate polling, commands and the software operating-hours counter."""
 
-    def __init__(self, hass: HomeAssistant, client: AquagemClient, interval: int) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        client: AquagemClient,
+        interval: int,
+        runtime_tracker: AquagemRuntimeTracker,
+    ) -> None:
         self._normal_update_interval = timedelta(seconds=interval)
         self._offline_update_interval = timedelta(
             seconds=max(DEFAULT_OFFLINE_SCAN_INTERVAL, interval)
@@ -34,6 +41,7 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
             update_interval=self._normal_update_interval,
         )
         self.client = client
+        self.runtime_tracker = runtime_tracker
         self.last_running_speed = client.minimum_speed
         self.active_preset: str | None = None
         self.active_preset_speed: int | None = None
@@ -53,6 +61,7 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
             # refresh must still be reported to Home Assistant.
             if self.data is None:
                 self.communication_online = False
+                self.runtime_tracker.pause()
                 raise UpdateFailed(str(err)) from err
 
             if self.consecutive_failures >= self.failure_threshold:
@@ -67,6 +76,8 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
                     )
                 self.communication_online = False
                 self.update_interval = self._offline_update_interval
+                # Do not keep accumulating indefinitely from a stale ON state.
+                self.runtime_tracker.pause()
             else:
                 self.communication_online = True
                 self.update_interval = self._normal_update_interval
@@ -91,6 +102,7 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
         self.consecutive_failures = 0
         self.last_communication_error = None
         self.update_interval = self._normal_update_interval
+        self.runtime_tracker.update_running(status.pump_on)
 
         if not self.client.minimum_speed <= self.last_running_speed <= self.client.maximum_speed:
             self.last_running_speed = self.client.minimum_speed
@@ -123,10 +135,12 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
             self.active_preset = None
             self.active_preset_speed = None
             optimistic = replace(current, pump_on=False, speed=0)
+            self.runtime_tracker.update_running(False)
         else:
             self.last_running_speed = speed
             self.active_preset = preset
             self.active_preset_speed = speed if preset is not None else None
             optimistic = replace(current, pump_on=True, speed=speed)
+            self.runtime_tracker.update_running(True)
 
         self.async_set_updated_data(optimistic)
