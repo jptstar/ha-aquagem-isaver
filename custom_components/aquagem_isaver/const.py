@@ -14,6 +14,8 @@ CONF_PROTOCOL = "protocol"
 CONF_MODBUS_UNIT = "modbus_unit"
 CONF_TRANSPORT = "transport"
 CONF_SERIAL_PORT = "serial_port"
+CONF_INITIAL_OPERATING_HOURS = "initial_operating_hours"
+CONF_OPERATING_HOURS = "operating_hours"
 
 TRANSPORT_TCP = "tcp"
 TRANSPORT_SERIAL = "serial"
@@ -24,6 +26,7 @@ DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
 DEFAULT_FAILURE_THRESHOLD = 3
 DEFAULT_OFFLINE_SCAN_INTERVAL = 30
+DEFAULT_INITIAL_OPERATING_HOURS = 0.0
 
 # Protocol identifiers are intentionally model-independent where possible.
 # Auto-detection validates protocol signatures; it does not guess a commercial
