@@ -5,7 +5,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfEnergy, UnitOfPower
+from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTime
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import DOMAIN, PUMP_MODBUS_ENERGY_SCALE
@@ -18,6 +18,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = [
         AquagemSpeedSensor(coordinator, entry),
         AquagemFaultCodeSensor(coordinator, entry),
+        AquagemOperatingHoursSensor(coordinator, entry),
     ]
     if coordinator.client.is_pump_modbus:
         entities.extend(
@@ -66,6 +67,30 @@ class AquagemFaultCodeSensor(AquagemEntity, SensorEntity):
     def native_value(self):
         data = self.coordinator.data
         return data.fault_code if data is not None else None
+
+
+class AquagemOperatingHoursSensor(AquagemEntity, SensorEntity):
+    """Persistent software operating-hours counter for all pump profiles."""
+
+    _attr_translation_key = "operating_hours"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_native_unit_of_measurement = UnitOfTime.HOURS
+    _attr_suggested_display_precision = 2
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_operating_hours"
+
+    @property
+    def native_value(self):
+        return round(self.coordinator.runtime_tracker.hours, 3)
+
+    @property
+    def available(self) -> bool:
+        # The stored counter remains meaningful even while the pump is offline.
+        return True
 
 
 class AquagemPowerSensor(AquagemEntity, SensorEntity):

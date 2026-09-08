@@ -8,11 +8,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    CONF_INITIAL_OPERATING_HOURS,
     CONF_MODBUS_UNIT,
     CONF_PROTOCOL,
     CONF_SCAN_INTERVAL,
     CONF_SERIAL_PORT,
     CONF_TRANSPORT,
+    DEFAULT_INITIAL_OPERATING_HOURS,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ISAVER_BAUDRATE,
@@ -28,6 +30,7 @@ from .const import (
 )
 from .coordinator import AquagemCoordinator
 from .protocol import AquagemClient
+from .runtime import AquagemRuntimeTracker
 from .transport import SerialTransport
 
 
@@ -120,10 +123,20 @@ async def async_setup_entry(
 ) -> bool:
     """Set up from a config entry."""
     client = _build_client(entry)
+    runtime_tracker = AquagemRuntimeTracker(
+        hass,
+        entry.entry_id,
+        entry.data.get(
+            CONF_INITIAL_OPERATING_HOURS, DEFAULT_INITIAL_OPERATING_HOURS
+        ),
+    )
+    await runtime_tracker.async_load()
+
     coordinator = AquagemCoordinator(
         hass,
         client,
         entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        runtime_tracker,
     )
 
     # Legacy entries may not yet store a protocol. The first successful refresh
@@ -210,13 +223,14 @@ async def _async_reload_entry(
 async def async_unload_entry(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> bool:
-    """Unload an entry and release any persistent serial connection."""
+    """Unload an entry and release transport/runtime resources."""
     coordinator = hass.data[DOMAIN].get(entry.entry_id)
     unloaded = await hass.config_entries.async_unload_platforms(
         entry, [Platform(platform) for platform in PLATFORMS]
     )
     if unloaded:
         if coordinator is not None:
+            await coordinator.runtime_tracker.async_shutdown()
             await coordinator.client.async_close()
         hass.data[DOMAIN].pop(entry.entry_id)
     return unloaded

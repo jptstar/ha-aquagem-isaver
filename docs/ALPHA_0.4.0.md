@@ -2,6 +2,17 @@
 
 This alpha series separates protocol handling from the connection transport and adds direct serial / USB-RS485 support.
 
+## 0.4.0-alpha.5
+
+- Add a persistent **Operating hours** sensor for every supported pump/drive profile, on TCP and direct serial.
+- Count time only while the pump state is confirmed ON; after the integration reaches its communication-failure threshold, accumulation pauses until communication is restored.
+- Persist the software hour meter independently from the config entry so Home Assistant restarts and integration reloads keep the accumulated value.
+- New installations can enter an **initial operating-hours value** (default `0 h`) to take over an existing pump or drive counter.
+- Existing installations start from `0 h` unless a value is set from the integration options.
+- Add an options menu with **Set operating-hours counter** and **Reset operating-hours counter** actions.
+- Reset is deliberately a configuration action only: no Home Assistant `button` entity is created.
+- The sensor uses Home Assistant duration / `total_increasing` semantics so it can be graphed and included in long-term statistics.
+
 ## 0.4.0-alpha.4
 
 - Harden existing WaveShare / TCP installations after the serial transport introduction.

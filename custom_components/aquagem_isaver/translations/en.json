@@ -6,7 +6,11 @@
         "description": "Choose how Home Assistant reaches the pump. Existing RS485/TCP gateways remain supported. Direct serial now supports the validated iSaver C3/D0 profile at 1200-8-N-1 and DM-family / standard Aquagem Modbus RTU at 9600-8-N-1.",
         "data": {
           "name": "Device name",
-          "transport": "Connection type"
+          "transport": "Connection type",
+          "initial_operating_hours": "Initial operating hours"
+        },
+        "data_description": {
+          "initial_operating_hours": "Use 0 for a new pump, or enter the existing hour-meter value when taking over an older pump or drive."
         }
       },
       "tcp": {
@@ -69,6 +73,13 @@
   "options": {
     "step": {
       "init": {
+        "menu_options": {
+          "settings": "General settings",
+          "set_runtime": "Set operating-hours counter",
+          "reset_runtime": "Reset operating-hours counter"
+        }
+      },
+      "settings": {
         "title": "Aquagem Pump options",
         "description": "Set the polling interval. iSaver C3/D0 devices also expose configurable RPM limits and Home Assistant speed profiles.",
         "data": {
@@ -80,12 +91,27 @@
           "day_speed": "Day profile speed",
           "max_preset_speed": "Max profile speed"
         }
+      },
+      "set_runtime": {
+        "title": "Set operating-hours counter",
+        "description": "Set the software hour meter to an explicit value, for example when taking over an existing pump or drive.",
+        "data": {
+          "operating_hours": "Operating hours"
+        }
+      },
+      "reset_runtime": {
+        "title": "Reset operating-hours counter",
+        "description": "The current counter is {hours} h. Submit this form to reset it to 0 h. This reset is available only from the integration configuration and does not create a Home Assistant button entity."
       }
     },
     "error": {
       "invalid_speed_step": "Speeds must be between 1200 and 2900 rpm in 100 rpm steps.",
       "invalid_speed_range": "Maximum speed must be greater than minimum speed.",
       "profile_out_of_range": "All profile speeds must be inside the configured minimum and maximum range."
+    },
+    "abort": {
+      "runtime_set": "Operating-hours counter updated.",
+      "runtime_reset": "Operating-hours counter reset to 0 h."
     }
   },
   "entity": {
@@ -93,6 +119,7 @@
       "speed": {"name": "Actual speed"},
       "capacity": {"name": "Running capacity"},
       "fault_code": {"name": "Raw fault code"},
+      "operating_hours": {"name": "Operating hours"},
       "power": {"name": "Power"},
       "energy_consumption": {"name": "Energy consumption"},
       "mode_code": {"name": "Mode code"},
