@@ -6,7 +6,11 @@
         "description": "Elija cómo Home Assistant accede a la bomba. Las pasarelas RS485/TCP existentes siguen siendo compatibles. La conexión serie directa ahora admite el perfil iSaver C3/D0 validado a 1200-8-N-1 y las bombas DM / Modbus RTU Aquagem estándar a 9600-8-N-1.",
         "data": {
           "name": "Nombre del dispositivo",
-          "transport": "Tipo de conexión"
+          "transport": "Tipo de conexión",
+          "initial_operating_hours": "Horas de funcionamiento iniciales"
+        },
+        "data_description": {
+          "initial_operating_hours": "Use 0 para una bomba nueva o introduzca el valor del contador horario existente al reutilizar una bomba o variador ya en servicio."
         }
       },
       "tcp": {
@@ -69,6 +73,13 @@
   "options": {
     "step": {
       "init": {
+        "menu_options": {
+          "settings": "Ajustes generales",
+          "set_runtime": "Ajustar contador de horas",
+          "reset_runtime": "Restablecer contador de horas"
+        }
+      },
+      "settings": {
         "title": "Opciones de la bomba Aquagem",
         "description": "Configure el intervalo de sondeo. Los dispositivos iSaver C3/D0 también ofrecen límites de RPM configurables y perfiles de velocidad de Home Assistant.",
         "data": {
@@ -80,12 +91,27 @@
           "day_speed": "Velocidad del perfil Día",
           "max_preset_speed": "Velocidad del perfil Máx."
         }
+      },
+      "set_runtime": {
+        "title": "Ajustar contador de horas",
+        "description": "Defina un valor explícito para el contador horario por software, por ejemplo al reutilizar una bomba o variador ya existente.",
+        "data": {
+          "operating_hours": "Horas de funcionamiento"
+        }
+      },
+      "reset_runtime": {
+        "title": "Restablecer contador de horas",
+        "description": "El contador actual es {hours} h. Envíe este formulario para restablecerlo a 0 h. El restablecimiento solo está disponible en la configuración de la integración y no crea una entidad de botón en Home Assistant."
       }
     },
     "error": {
       "invalid_speed_step": "Las velocidades deben estar entre 1200 y 2900 rpm en pasos de 100 rpm.",
       "invalid_speed_range": "La velocidad máxima debe ser superior a la velocidad mínima.",
       "profile_out_of_range": "Todas las velocidades de los perfiles deben estar dentro del intervalo mínimo y máximo configurado."
+    },
+    "abort": {
+      "runtime_set": "Contador de horas actualizado.",
+      "runtime_reset": "Contador de horas restablecido a 0 h."
     }
   },
   "entity": {
@@ -93,6 +119,7 @@
       "speed": {"name": "Velocidad real"},
       "capacity": {"name": "Capacidad de funcionamiento"},
       "fault_code": {"name": "Código de fallo sin procesar"},
+      "operating_hours": {"name": "Horas de funcionamiento"},
       "power": {"name": "Potencia"},
       "energy_consumption": {"name": "Consumo de energía"},
       "mode_code": {"name": "Código de modo"},
