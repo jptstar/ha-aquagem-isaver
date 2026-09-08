@@ -20,17 +20,20 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_DAY_SPEED,
     CONF_ECO_SPEED,
+    CONF_INITIAL_OPERATING_HOURS,
     CONF_MAX_OPERATING_SPEED,
     CONF_MAX_PRESET_SPEED,
     CONF_MIN_OPERATING_SPEED,
     CONF_MODBUS_UNIT,
     CONF_NIGHT_SPEED,
+    CONF_OPERATING_HOURS,
     CONF_PROTOCOL,
     CONF_SCAN_INTERVAL,
     CONF_SERIAL_PORT,
     CONF_TRANSPORT,
     DEFAULT_DAY_SPEED,
     DEFAULT_ECO_SPEED,
+    DEFAULT_INITIAL_OPERATING_HOURS,
     DEFAULT_MAX_OPERATING_SPEED,
     DEFAULT_MAX_PRESET_SPEED,
     DEFAULT_MIN_OPERATING_SPEED,
@@ -55,6 +58,7 @@ from .const import (
     TRANSPORT_TCP,
 )
 from .protocol import AquagemClient, AquagemConnectionError, AquagemError
+from .runtime import async_get_runtime_hours, async_set_runtime_hours
 from .transport import SerialTransport
 
 
@@ -75,6 +79,16 @@ SCAN_INTERVAL_SELECTOR = NumberSelector(
         step=1,
         mode=NumberSelectorMode.BOX,
         unit_of_measurement="s",
+    )
+)
+
+OPERATING_HOURS_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=0,
+        max=1000000,
+        step=0.1,
+        mode=NumberSelectorMode.BOX,
+        unit_of_measurement="h",
     )
 )
 
@@ -146,12 +160,18 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._pending_name = DEFAULT_NAME
+        self._pending_initial_hours = DEFAULT_INITIAL_OPERATING_HOURS
         self._pending_data: dict | None = None
 
     async def async_step_user(self, user_input=None):
         """Choose the connection transport."""
         if user_input is not None:
             self._pending_name = str(user_input[CONF_NAME]).strip() or DEFAULT_NAME
+            self._pending_initial_hours = float(
+                user_input.get(
+                    CONF_INITIAL_OPERATING_HOURS, DEFAULT_INITIAL_OPERATING_HOURS
+                )
+            )
             if user_input[CONF_TRANSPORT] == TRANSPORT_SERIAL:
                 return await self.async_step_serial()
             return await self.async_step_tcp()
@@ -164,6 +184,10 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_TRANSPORT, default=TRANSPORT_TCP): vol.In(
                         TRANSPORT_CHOICES
                     ),
+                    vol.Required(
+                        CONF_INITIAL_OPERATING_HOURS,
+                        default=DEFAULT_INITIAL_OPERATING_HOURS,
+                    ): OPERATING_HOURS_SELECTOR,
                 }
             ),
         )
@@ -192,6 +216,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_TRANSPORT: TRANSPORT_TCP,
                         CONF_HOST: host,
                         CONF_PORT: port,
+                        CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
                     }
                     return await self.async_step_manual()
 
@@ -201,6 +226,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_HOST: host,
                     CONF_PORT: port,
                     CONF_PROTOCOL: client.protocol,
+                    CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
                 }
                 if client.is_pump_modbus:
                     data[CONF_MODBUS_UNIT] = client.modbus_unit
@@ -261,6 +287,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_TRANSPORT: TRANSPORT_SERIAL,
                         CONF_SERIAL_PORT: serial_port,
                         CONF_PROTOCOL: protocol,
+                        CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
                     }
                     if protocol == PROTOCOL_PUMP_MODBUS:
                         data[CONF_MODBUS_UNIT] = unit
@@ -528,10 +555,17 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class AquagemOptionsFlow(config_entries.OptionsFlow):
-    """Configure polling and iSaver-specific RPM profiles."""
+    """Configure polling, RPM profiles and operating-hours counter."""
 
     async def async_step_init(self, user_input=None):
-        """Manage options for the active protocol."""
+        """Show configuration actions."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["settings", "set_runtime", "reset_runtime"],
+        )
+
+    async def async_step_settings(self, user_input=None):
+        """Manage polling and protocol-specific options."""
         errors = {}
         is_modbus = self.config_entry.data.get(CONF_PROTOCOL) == PROTOCOL_PUMP_MODBUS
 
@@ -627,7 +661,55 @@ class AquagemOptionsFlow(config_entries.OptionsFlow):
             )
 
         return self.async_show_form(
-            step_id="init",
+            step_id="settings",
             data_schema=schema,
             errors=errors,
+        )
+
+    async def async_step_set_runtime(self, user_input=None):
+        """Set the software operating-hours counter to an explicit value."""
+        initial_hours = self.config_entry.data.get(
+            CONF_INITIAL_OPERATING_HOURS, DEFAULT_INITIAL_OPERATING_HOURS
+        )
+        current_hours = await async_get_runtime_hours(
+            self.hass, self.config_entry.entry_id, initial_hours
+        )
+
+        if user_input is not None:
+            await async_set_runtime_hours(
+                self.hass,
+                self.config_entry.entry_id,
+                float(user_input[CONF_OPERATING_HOURS]),
+            )
+            return self.async_abort(reason="runtime_set")
+
+        return self.async_show_form(
+            step_id="set_runtime",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_OPERATING_HOURS,
+                        default=round(current_hours, 1),
+                    ): OPERATING_HOURS_SELECTOR,
+                }
+            ),
+        )
+
+    async def async_step_reset_runtime(self, user_input=None):
+        """Reset the software operating-hours counter from configuration."""
+        initial_hours = self.config_entry.data.get(
+            CONF_INITIAL_OPERATING_HOURS, DEFAULT_INITIAL_OPERATING_HOURS
+        )
+        current_hours = await async_get_runtime_hours(
+            self.hass, self.config_entry.entry_id, initial_hours
+        )
+
+        if user_input is not None:
+            await async_set_runtime_hours(self.hass, self.config_entry.entry_id, 0.0)
+            return self.async_abort(reason="runtime_reset")
+
+        return self.async_show_form(
+            step_id="reset_runtime",
+            data_schema=vol.Schema({}),
+            description_placeholders={"hours": f"{current_hours:.2f}"},
         )
