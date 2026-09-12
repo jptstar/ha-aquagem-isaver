@@ -148,6 +148,28 @@ async def async_setup_entry(hass, entry, async_add_entities):
         faults, definitive_map = _modbus_faults_for_setup(coordinator)
         if definitive_map:
             _remove_inactive_modbus_registry_entities(hass, entry, faults)
+        else:
+            # Keep the safe union during a genuinely transient/unknown startup.
+            # As soon as the map becomes definitive, reload once so Home
+            # Assistant recreates only the applicable diagnostic entities.
+            reload_scheduled = False
+
+            def _reload_when_fault_map_is_known() -> None:
+                nonlocal reload_scheduled
+                if reload_scheduled:
+                    return
+                _, map_is_now_definitive = _modbus_faults_for_setup(coordinator)
+                if not map_is_now_definitive:
+                    return
+                reload_scheduled = True
+                hass.async_create_task(
+                    hass.config_entries.async_reload(entry.entry_id),
+                    "Reload Aquagem fault map",
+                )
+
+            entry.async_on_unload(
+                coordinator.async_add_listener(_reload_when_fault_map_is_known)
+            )
 
     async_add_entities(
         [
