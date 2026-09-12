@@ -12,11 +12,13 @@
   <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/License-GPL--3.0--or--later-blue"></a>
 </p>
 
-## Aquagem Pump 0.4.0
+## Aquagem Pump 0.4.1
 
-Version **0.4.0** is the first stable release with both transparent **RS485/TCP gateways** and direct **USB-RS485 / Modbus RTU** transport.
+Version **0.4.1** is a maintenance release on top of 0.4.0. For validated DM15 / INVERsilence V1.5 pumps, Home Assistant now creates only the applicable fault-map diagnostic entities once the map is known and removes stale legacy-only entities that previously remained as **Unavailable / No disponible**.
 
-It also adds multi-device RS485 buses, FIFO transaction scheduling, a persistent software operating-hours counter and the Modbus V1.5 diagnostic sensors introduced during the 0.3.5/0.4.0 test series.
+Antonio Garcia's real-hardware DM15 feedback confirms **Mode Code 15**, the 5% capacity grid, register `2004` power reporting, the extended energy/diagnostic block and the physical touch-panel lockout while active Modbus communication is in use.
+
+The 0.4.x line includes transparent **RS485/TCP gateways**, direct **USB-RS485 / Modbus RTU**, multi-device RS485 buses, FIFO transaction scheduling and a persistent software operating-hours counter.
 
 > [!IMPORTANT]
 > Aquagem Pump is an unofficial community integration. It is independent and is not developed, approved, endorsed or maintained by Aquagem.
@@ -89,7 +91,7 @@ Aquagem Pump declares the Home Assistant `usb` dependency. In Home Assistant 202
 
 ## Multiple Modbus devices on one RS485 bus
 
-Version 0.4.0 supports several addressed Aquagem Modbus pumps behind the same physical bus.
+Version 0.4.1 supports several addressed Aquagem Modbus pumps behind the same physical bus.
 
 Example with one USB-RS485 adapter:
 
@@ -137,9 +139,9 @@ Additional Modbus entities:
 | Energy consumption | optional register `2007`, kWh |
 | Mode code | optional register `2008` |
 | Software version | optional register `2009` |
-| Fault binary sensors | documented legacy/V1.5 fault maps |
+| Fault binary sensors | active documented legacy/V1.5 fault map |
 
-The V1.5 block is optional. Older or alternate Aquagem maps continue to work when registers `2007..2009` are not implemented.
+The V1.5 block is optional. Older or alternate Aquagem maps continue to work when registers `2007..2009` are not implemented. Once the map is known, inactive-map fault entities are removed instead of being left permanently unavailable.
 
 ## Operating-hours counter
 
@@ -198,7 +200,7 @@ Unsupported percentages are rounded down to the lower 5% step before writing.
 
 Short communication failures do not immediately make the pump unavailable.
 
-- the last validated state is preserved through the first two consecutive failures;
+- the last validated state is preserved through the first two consecutive failed polls;
 - the third consecutive failure marks communication offline;
 - polling slows while offline;
 - the first successful response restores normal operation immediately.
@@ -307,7 +309,7 @@ No undocumented write command is added merely to probe hardware.
 
 ## Contributions & credits
 
-- **Antonio Garcia** — independent DM15 / INVERsilence hardware validation, including the Modbus read map, 5% control grid, register `2004` power value and guarded write/OFF sequence.
+- **Antonio Garcia** — independent real-hardware DM15 / INVERsilence validation: Modbus read map, native 5% capacity grid, register `2004` power reporting, extended energy/diagnostic registers, confirmed Mode Code `15`, guarded write/OFF behavior and confirmation that the physical touch-panel remains locked while active Modbus communication is in use.
 
 Thanks to everyone sharing diagnostics, protocol captures, device variants and real-hardware feedback.
 
