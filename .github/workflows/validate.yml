@@ -32,3 +32,5 @@ jobs:
         uses: actions/checkout@v4
       - name: Compile Python
         run: python -m compileall custom_components
+      - name: Validate config-flow step dispatch
+        run: python tools/check_config_flow_steps.py
