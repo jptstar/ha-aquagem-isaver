@@ -18,9 +18,7 @@ from .const import (
     DEFAULT_IDLE_SCAN_INTERVAL,
     DEFAULT_LOCAL_CONTROL_ASSIST,
     DEFAULT_OFFLINE_SCAN_INTERVAL,
-    ISAVER_MIN_IDLE_SCAN_INTERVAL,
     LOCAL_CONTROL_COMMAND_SETTLE_SECONDS,
-    LOCAL_CONTROL_FAST_WINDOW_SECONDS,
     MAX_IDLE_SCAN_INTERVAL,
     MIN_IDLE_SCAN_INTERVAL,
     PROTOCOL_ISAVER,
@@ -46,17 +44,7 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
         self._offline_update_interval = timedelta(
             seconds=max(DEFAULT_OFFLINE_SCAN_INTERVAL, interval)
         )
-        minimum_idle = (
-            ISAVER_MIN_IDLE_SCAN_INTERVAL
-            if client.protocol == PROTOCOL_ISAVER
-            else MIN_IDLE_SCAN_INTERVAL
-        )
-        self._idle_scan_interval_seconds = max(
-            DEFAULT_IDLE_SCAN_INTERVAL, interval, minimum_idle
-        )
-        self._idle_update_interval = timedelta(
-            seconds=self._idle_scan_interval_seconds
-        )
+        self._idle_scan_interval_seconds = DEFAULT_IDLE_SCAN_INTERVAL
         super().__init__(
             hass,
             logger=_LOGGER,
@@ -72,35 +60,31 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
         self.failure_threshold = DEFAULT_FAILURE_THRESHOLD
         self.last_communication_error: str | None = None
 
-        # Opt-in adaptive polling. Standard Modbus pumps simply need useful quiet
-        # gaps between transactions. The proprietary iSaver C3/D0 profile is
-        # different: C3 reads made more often than 60 seconds keep a preceding D0
-        # remote-speed override alive, so its idle interval must exceed that
-        # watchdog before the panel/manual state can regain priority.
+        # Local-panel coexistence is a temporary post-command silence, not a
+        # permanently slow polling mode. Real-hardware iSaver tests established
+        # that C3 reads during the remote-override window prolong that override,
+        # while C3 reads after the watchdog has expired do not re-apply the old
+        # D0 command. The same generic quiet-window mechanism is available to the
+        # Modbus/DM profile after Home Assistant writes.
         self.local_control_assist = DEFAULT_LOCAL_CONTROL_ASSIST
         self.last_change_source = CHANGE_SOURCE_UNKNOWN
-        self._fast_poll_until = 0.0
+        self._quiet_until = 0.0
         self._last_ha_command_at = 0.0
         self._pending_ha_target: tuple[bool, int] | None = None
 
     @property
     def normal_scan_interval_seconds(self) -> int:
-        """Return the configured fast polling interval."""
+        """Return the configured normal polling interval."""
         return int(self._normal_update_interval.total_seconds())
 
     @property
     def minimum_idle_scan_interval_seconds(self) -> int:
-        """Return the protocol-safe minimum interval for local-panel assist."""
-        protocol_minimum = (
-            ISAVER_MIN_IDLE_SCAN_INTERVAL
-            if self.client.protocol == PROTOCOL_ISAVER
-            else MIN_IDLE_SCAN_INTERVAL
-        )
-        return max(protocol_minimum, self.normal_scan_interval_seconds)
+        """Return the minimum configurable post-command silence."""
+        return MIN_IDLE_SCAN_INTERVAL
 
     @property
     def idle_scan_interval_seconds(self) -> int:
-        """Return the adaptive idle polling interval."""
+        """Return the configured post-command silence in seconds."""
         return self._idle_scan_interval_seconds
 
     @staticmethod
@@ -117,41 +101,62 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
             # must not itself generate an RS485/TCP transaction.
             self.async_set_updated_data(self.data)
 
+    def _quiet_update_interval(self, remaining: float | None = None) -> timedelta:
+        """Return an interval that respects both silence and normal polling."""
+        silence = (
+            self._idle_scan_interval_seconds
+            if remaining is None
+            else max(0.0, remaining)
+        )
+        return timedelta(
+            seconds=max(float(self.normal_scan_interval_seconds), silence)
+        )
+
     def set_local_control_assist(self, enabled: bool) -> None:
-        """Enable or disable adaptive local-panel-friendly polling."""
+        """Enable or disable the post-command local-panel quiet window."""
         self.local_control_assist = bool(enabled)
-        if self.local_control_assist:
-            # Enter idle mode immediately when the user enables the feature.
-            # For iSaver this creates the >60 s C3 silence required to let a
-            # previous D0 remote override expire. A later HA command wakes fast
-            # polling until that command has been observed.
-            self._fast_poll_until = 0.0
+
+        if not self.local_control_assist:
+            # Disabling the feature immediately restores normal polling. It does
+            # not send a read by itself; the existing coordinator timer is simply
+            # rescheduled from the current validated state.
+            self._quiet_until = 0.0
             if self.communication_online is not False:
-                self.update_interval = self._idle_update_interval
+                self.update_interval = self._normal_update_interval
         elif self.communication_online is not False:
+            # Enabling the feature while idle must not create an artificial quiet
+            # period. Silence begins only after the next Home Assistant write.
             self.update_interval = self._normal_update_interval
+
         self._reschedule_current_data()
 
     def set_idle_scan_interval(self, seconds: int | float) -> None:
-        """Update the local-control idle polling interval."""
-        minimum = self.minimum_idle_scan_interval_seconds
-        value = max(minimum, min(MAX_IDLE_SCAN_INTERVAL, int(round(seconds))))
+        """Update the post-command local-panel silence duration."""
+        value = max(
+            MIN_IDLE_SCAN_INTERVAL,
+            min(MAX_IDLE_SCAN_INTERVAL, int(round(seconds))),
+        )
         self._idle_scan_interval_seconds = value
-        self._idle_update_interval = timedelta(seconds=value)
+
+        now = monotonic()
         if (
             self.local_control_assist
-            and self.communication_online is not False
-            and monotonic() >= self._fast_poll_until
+            and self._last_ha_command_at > 0.0
+            and now < self._quiet_until
         ):
-            self.update_interval = self._idle_update_interval
-            self._reschedule_current_data()
-
-    def _set_success_polling_interval(self, now: float) -> None:
-        """Select fast or idle polling after a successful read."""
-        if self.local_control_assist and now >= self._fast_poll_until:
-            self.update_interval = self._idle_update_interval
-        else:
+            # If the user adjusts the value during an active quiet window, apply
+            # the new duration relative to the most recent Home Assistant write.
+            self._quiet_until = self._last_ha_command_at + value
+            remaining = self._quiet_until - now
+            if remaining > 0:
+                self.update_interval = self._quiet_update_interval(remaining)
+            else:
+                self._quiet_until = 0.0
+                self.update_interval = self._normal_update_interval
+        elif self.communication_online is not False:
             self.update_interval = self._normal_update_interval
+
+        self._reschedule_current_data()
 
     def _track_change_source(
         self,
@@ -164,40 +169,36 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
 
         if self._pending_ha_target is not None:
             if actual == self._pending_ha_target:
-                # The command written by Home Assistant has been observed on the
-                # wire; subsequent changes can again be classified as external.
                 self.last_change_source = CHANGE_SOURCE_HOME_ASSISTANT
                 self._pending_ha_target = None
-
-                # On iSaver, every additional C3 read inside the 60 s watchdog
-                # prolongs the D0 remote override. Once the requested state has
-                # been confirmed, immediately start the long idle gap instead of
-                # keeping the generic 30 s fast window alive.
-                if (
-                    self.local_control_assist
-                    and self.client.protocol == PROTOCOL_ISAVER
-                ):
-                    self._fast_poll_until = 0.0
             elif (
                 now - self._last_ha_command_at
                 >= LOCAL_CONTROL_COMMAND_SETTLE_SECONDS
             ):
-                # A command that still does not match after the settle period is
-                # treated as an external/local change instead of being forced
-                # back to the optimistic Home Assistant value.
-                if previous is not None and self._control_state(previous) != actual:
-                    self.last_change_source = CHANGE_SOURCE_EXTERNAL
-                    self._pending_ha_target = None
-                    self._fast_poll_until = 0.0
+                # After a protected quiet window, a different real state is the
+                # local/external state. Never force the optimistic HA value back.
+                self.last_change_source = CHANGE_SOURCE_EXTERNAL
+                self._pending_ha_target = None
             return
 
         if previous is not None and self._control_state(previous) != actual:
             self.last_change_source = CHANGE_SOURCE_EXTERNAL
-            # Keep the slower idle cadence after a physical/external change so
-            # the person at the panel receives another useful silent window.
-            self._fast_poll_until = 0.0
 
     async def _async_update_data(self) -> AquagemStatus:
+        # Enforce the quiet window even if Home Assistant requests an early
+        # coordinator refresh. No C3/Modbus status request may escape during this
+        # period, because a read can itself prolong remote priority on iSaver.
+        now = monotonic()
+        if (
+            self.local_control_assist
+            and self.data is not None
+            and now < self._quiet_until
+        ):
+            self.update_interval = self._quiet_update_interval(
+                self._quiet_until - now
+            )
+            return self.data
+
         previous = self.data
         try:
             status = await self.client.read_status()
@@ -249,11 +250,12 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
             _LOGGER.info("Aquagem pump communication restored; normal polling resumed")
 
         now = monotonic()
+        self._quiet_until = 0.0
         self.communication_online = True
         self.consecutive_failures = 0
         self.last_communication_error = None
         self._track_change_source(previous, status, now)
-        self._set_success_polling_interval(now)
+        self.update_interval = self._normal_update_interval
         self.runtime_tracker.update_running(status.pump_on)
 
         if not self.client.minimum_speed <= self.last_running_speed <= self.client.maximum_speed:
@@ -282,11 +284,16 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
         self.last_change_source = CHANGE_SOURCE_HOME_ASSISTANT
         self._last_ha_command_at = now
         self._pending_ha_target = (target_on, target_speed)
-        self._fast_poll_until = now + LOCAL_CONTROL_FAST_WINDOW_SECONDS
-        # A Home Assistant command always wakes the fast polling cadence. Do not
-        # force an immediate read: the released iSaver path intentionally avoids
-        # reading directly after its write-only D0 frame.
-        self.update_interval = self._normal_update_interval
+
+        if self.local_control_assist:
+            # Start a true no-read window after every Home Assistant write. A new
+            # HA command during the window is still allowed and simply restarts
+            # the timer from this latest write.
+            self._quiet_until = now + self._idle_scan_interval_seconds
+            self.update_interval = self._quiet_update_interval()
+        else:
+            self._quiet_until = 0.0
+            self.update_interval = self._normal_update_interval
 
         current = self.data or AquagemStatus(
             fault_code=0,
@@ -307,4 +314,6 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
             optimistic = replace(current, pump_on=True, speed=speed)
             self.runtime_tracker.update_running(True)
 
+        # Publishing the optimistic state also schedules the next coordinator
+        # refresh using the quiet interval selected above.
         self.async_set_updated_data(optimistic)
