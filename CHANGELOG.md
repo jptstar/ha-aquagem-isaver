@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+- Use the hardware-confirmed Modbus V1.5 fault map immediately when register `2008` reports a known V1.5 mode code, including Antonio Garcia's confirmed DM15 mode code `15`.
+- Stop creating legacy-only diagnostic fault entities on known V1.5 pumps, so they no longer appear as `Unavailable` / `No disponible` in the Home Assistant device page.
+- Remove stale inactive Modbus fault entities from the Home Assistant entity registry when the active map is definitive.
+- Keep the legacy fault map when registers `2007..2009` explicitly report an unsupported/illegal register or function.
+- Preserve the safe union fallback after transient extended-register communication failures and automatically reload once the fault map becomes definitive.
+- Keep Modbus register meanings, fault-bit assignments, 5% capacity control, power/energy sensors, FIFO RS485 scheduling and iSaver behavior unchanged.
+
 ## 0.4.0
 
 - Promote the 0.4.0 alpha series to the first stable release with direct serial / USB-RS485 support alongside transparent RS485/TCP gateways.
