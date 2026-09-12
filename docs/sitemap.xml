@@ -7,9 +7,27 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://jptstar.github.io/ha-aquagem-isaver/aquagem-dm15-home-assistant.html</loc>
+    <lastmod>2026-09-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jptstar.github.io/ha-aquagem-isaver/isaver-power-1100-home-assistant.html</loc>
+    <lastmod>2026-09-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://jptstar.github.io/ha-aquagem-isaver/waveshare-rs485-home-assistant.html</loc>
     <lastmod>2026-09-12</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://jptstar.github.io/ha-aquagem-isaver/contributors.html</loc>
+    <lastmod>2026-09-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset>
