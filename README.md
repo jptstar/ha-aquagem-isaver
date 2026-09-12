@@ -12,11 +12,13 @@
   <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/License-GPL--3.0--or--later-blue"></a>
 </p>
 
-## Aquagem Pump 0.4.1
+## Aquagem Pump 0.4.2
 
-Version **0.4.1** is a maintenance release on top of 0.4.0. For validated DM15 / INVERsilence V1.5 pumps, Home Assistant now creates only the applicable fault-map diagnostic entities once the map is known and removes stale legacy-only entities that previously remained as **Unavailable / No disponible**.
+Version **0.4.2** promotes the local-panel coexistence work to stable. Instead of slowing polling permanently, Aquagem Pump now leaves a **temporary RS485 silence after a Home Assistant command**, then automatically returns to the normal polling interval.
 
-Antonio Garcia's real-hardware DM15 feedback confirms **Mode Code 15**, the 5% capacity grid, register `2004` power reporting, the extended energy/diagnostic block and the physical touch-panel lockout while active Modbus communication is in use.
+Real-hardware iSaver validation established the important timing behavior: a D0 command keeps remote priority for about **60 seconds**; C3 reads during that active window prolong the override; after the watchdog has expired, later C3 reads do **not** re-apply the old D0 command. The stable default silence is therefore **65 seconds**, adjustable from **50 to 180 seconds** in 5-second steps.
+
+The same post-command quiet-window mechanism is applied to the supported **DM15 / standard Aquagem Modbus** profile so its local panel also receives a bus-silent period after Home Assistant writes. Exact local-panel timing can vary by pump/firmware, which is why the duration remains configurable.
 
 The 0.4.x line includes transparent **RS485/TCP gateways**, direct **USB-RS485 / Modbus RTU**, multi-device RS485 buses, FIFO transaction scheduling and a persistent software operating-hours counter.
 
@@ -91,7 +93,7 @@ Aquagem Pump declares the Home Assistant `usb` dependency. In Home Assistant 202
 
 ## Multiple Modbus devices on one RS485 bus
 
-Version 0.4.1 supports several addressed Aquagem Modbus pumps behind the same physical bus.
+Version 0.4.2 supports several addressed Aquagem Modbus pumps behind the same physical bus.
 
 Example with one USB-RS485 adapter:
 
@@ -130,6 +132,8 @@ Common entities for all supported profiles:
 | Fault code | Sensor | Raw fault word |
 | Connection | Binary sensor | Communication status |
 | Operating hours | Sensor | Persistent software runtime counter |
+| Local panel assist | Switch | Enables the post-command bus-silence window |
+| Post-command local-panel silence | Number | Quiet-window duration, 50–180 s, default 65 s |
 
 Additional Modbus entities:
 
@@ -142,6 +146,27 @@ Additional Modbus entities:
 | Fault binary sensors | active documented legacy/V1.5 fault map |
 
 The V1.5 block is optional. Older or alternate Aquagem maps continue to work when registers `2007..2009` are not implemented. Once the map is known, inactive-map fault entities are removed instead of being left permanently unavailable.
+
+## Local-panel coexistence
+
+**Local panel assist is enabled by default in 0.4.2.** It affects polling only after a Home Assistant write.
+
+Normal behavior is:
+
+```text
+normal polling
+→ Home Assistant changes speed/state
+→ one D0 or Modbus write
+→ 65 s bus silence by default
+→ first status read
+→ normal polling resumes
+```
+
+Another Home Assistant command is still accepted immediately during the silent period and restarts the silence timer from that newest write. Manual/early coordinator refreshes are prevented from emitting a status read while the protected window is active.
+
+For the validated iSaver C3/D0 hardware, the 65-second default is deliberately just above the measured ~60-second remote-priority watchdog. Once that watchdog has expired, recurring C3 reads can resume at the normal polling interval without restoring the old D0 speed. This means later physical-panel changes can be detected normally by Home Assistant.
+
+For DM15 / standard Aquagem Modbus, the same mechanism is available because active RS485 communication can interfere with local-panel use. The exact timeout has not been claimed as universally identical to iSaver, so the silence remains adjustable from **50 to 180 seconds** or the feature can be disabled from the device configuration entities.
 
 ## Operating-hours counter
 
