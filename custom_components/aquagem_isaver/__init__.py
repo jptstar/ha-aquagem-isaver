@@ -52,6 +52,19 @@ def _entry_title(data: dict, fallback_title: str) -> str:
     return f"{name} {host}" if host else str(name)
 
 
+def _entry_unique_id(data: dict) -> str | None:
+    """Return the canonical endpoint identity used by the config flow."""
+    if data.get(CONF_TRANSPORT, TRANSPORT_TCP) == TRANSPORT_SERIAL:
+        serial_port = data.get(CONF_SERIAL_PORT)
+        return f"serial:{serial_port}" if serial_port else None
+
+    host = data.get(CONF_HOST)
+    port = data.get(CONF_PORT)
+    if host is None or port is None:
+        return None
+    return f"{host}:{port}"
+
+
 def _serial_transport(entry: ConfigEntry) -> SerialTransport:
     """Create the direct serial transport for the stored protocol profile."""
     protocol = entry.data.get(CONF_PROTOCOL, PROTOCOL_PUMP_MODBUS)
@@ -122,6 +135,26 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> bool:
     """Set up from a config entry."""
+    # Reconfiguration can change an IP/port or serial path. Keep the config
+    # entry identity synchronized with the endpoint chosen by the user so a
+    # later setup cannot accidentally create a duplicate for that endpoint.
+    expected_unique_id = _entry_unique_id(entry.data)
+    if expected_unique_id is not None and entry.unique_id != expected_unique_id:
+        duplicate = next(
+            (
+                other
+                for other in hass.config_entries.async_entries(DOMAIN)
+                if other.entry_id != entry.entry_id
+                and other.unique_id == expected_unique_id
+            ),
+            None,
+        )
+        if duplicate is None:
+            hass.config_entries.async_update_entry(
+                entry,
+                unique_id=expected_unique_id,
+            )
+
     client = _build_client(entry)
     runtime_tracker = AquagemRuntimeTracker(
         hass,
