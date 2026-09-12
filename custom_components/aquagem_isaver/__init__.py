@@ -39,30 +39,73 @@ def _serial_title_suffix(serial_port: str) -> str:
     return clean.rsplit("/", 1)[-1] or serial_port
 
 
+def _unit_suffix(data: dict) -> str:
+    """Return a visible Modbus unit suffix for multi-device buses."""
+    if data.get(CONF_PROTOCOL) != PROTOCOL_PUMP_MODBUS:
+        return ""
+    unit = int(data.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT))
+    return f" [0x{unit:02X}]"
+
+
 def _entry_title(data: dict, fallback_title: str) -> str:
-    """Build a compact title without changing config-entry identity."""
+    """Build a compact title without changing entity identity."""
     name = data.get(CONF_NAME, fallback_title)
+    suffix = _unit_suffix(data)
     if data.get(CONF_TRANSPORT, TRANSPORT_TCP) == TRANSPORT_SERIAL:
         serial_port = data.get(CONF_SERIAL_PORT)
         if serial_port:
-            return f"{name} {_serial_title_suffix(str(serial_port))}"
-        return str(name)
+            return f"{name} {_serial_title_suffix(str(serial_port))}{suffix}"
+        return f"{name}{suffix}"
 
     host = data.get(CONF_HOST)
-    return f"{name} {host}" if host else str(name)
+    return f"{name} {host}{suffix}" if host else f"{name}{suffix}"
 
 
 def _entry_unique_id(data: dict) -> str | None:
-    """Return the canonical endpoint identity used by the config flow."""
-    if data.get(CONF_TRANSPORT, TRANSPORT_TCP) == TRANSPORT_SERIAL:
+    """Return the canonical device identity on a shared physical bus."""
+    transport = data.get(CONF_TRANSPORT, TRANSPORT_TCP)
+    protocol = data.get(CONF_PROTOCOL)
+
+    if transport == TRANSPORT_SERIAL:
         serial_port = data.get(CONF_SERIAL_PORT)
-        return f"serial:{serial_port}" if serial_port else None
+        if not serial_port:
+            return None
+        if protocol == PROTOCOL_PUMP_MODBUS:
+            unit = int(data.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT))
+            return f"serial:{serial_port}:modbus:{unit:02X}"
+        if protocol == PROTOCOL_ISAVER:
+            return f"serial:{serial_port}:isaver"
+        return f"serial:{serial_port}"
 
     host = data.get(CONF_HOST)
     port = data.get(CONF_PORT)
     if host is None or port is None:
         return None
-    return f"{host}:{port}"
+    if protocol == PROTOCOL_PUMP_MODBUS:
+        unit = int(data.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT))
+        return f"tcp:{host}:{port}:modbus:{unit:02X}"
+    if protocol == PROTOCOL_ISAVER:
+        return f"tcp:{host}:{port}:isaver"
+    return f"tcp:{host}:{port}"
+
+
+def _sync_entry_unique_id(hass: HomeAssistant, entry: ConfigEntry, data: dict) -> None:
+    """Keep the config-entry identity aligned with endpoint + Modbus unit."""
+    expected_unique_id = _entry_unique_id(data)
+    if expected_unique_id is None or entry.unique_id == expected_unique_id:
+        return
+
+    duplicate = next(
+        (
+            other
+            for other in hass.config_entries.async_entries(DOMAIN)
+            if other.entry_id != entry.entry_id
+            and _entry_unique_id(dict(other.data)) == expected_unique_id
+        ),
+        None,
+    )
+    if duplicate is None:
+        hass.config_entries.async_update_entry(entry, unique_id=expected_unique_id)
 
 
 def _serial_transport(entry: ConfigEntry) -> SerialTransport:
@@ -105,8 +148,8 @@ def _build_client(entry: ConfigEntry) -> AquagemClient:
 async def async_migrate_entry(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> bool:
-    """Migrate older entries to the transport-aware config format."""
-    if entry.version > 3:
+    """Migrate older entries to the transport-aware multi-device format."""
+    if entry.version > 4:
         return False
 
     if entry.version < 3:
@@ -128,6 +171,12 @@ async def async_migrate_entry(
             version=3,
         )
 
+    if entry.version < 4:
+        # Version 4 changes config-entry identity from one-entry-per-endpoint to
+        # endpoint + protocol + Modbus unit. Entity unique IDs still use the
+        # stable entry_id, so existing Home Assistant entities are preserved.
+        hass.config_entries.async_update_entry(entry, version=4)
+
     return True
 
 
@@ -135,25 +184,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> bool:
     """Set up from a config entry."""
-    # Reconfiguration can change an IP/port or serial path. Keep the config
-    # entry identity synchronized with the endpoint chosen by the user so a
-    # later setup cannot accidentally create a duplicate for that endpoint.
-    expected_unique_id = _entry_unique_id(entry.data)
-    if expected_unique_id is not None and entry.unique_id != expected_unique_id:
-        duplicate = next(
-            (
-                other
-                for other in hass.config_entries.async_entries(DOMAIN)
-                if other.entry_id != entry.entry_id
-                and other.unique_id == expected_unique_id
-            ),
-            None,
-        )
-        if duplicate is None:
-            hass.config_entries.async_update_entry(
-                entry,
-                unique_id=expected_unique_id,
-            )
+    _sync_entry_unique_id(hass, entry, dict(entry.data))
 
     client = _build_client(entry)
     runtime_tracker = AquagemRuntimeTracker(
@@ -211,6 +242,10 @@ async def async_setup_entry(
                 data=data,
                 title=title,
             )
+
+        # Detection may have changed the canonical identity from endpoint-only
+        # to endpoint + protocol + unit, so synchronize it once more.
+        _sync_entry_unique_id(hass, entry, data)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
