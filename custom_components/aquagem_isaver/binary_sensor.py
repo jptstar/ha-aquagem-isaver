@@ -84,21 +84,32 @@ PUMP_MODBUS_V15_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_input_voltage_abnormal", translation_key="modbus_input_voltage_abnormal", bit=15, protocol=PROTOCOL_PUMP_MODBUS),
 )
 
+PUMP_MODBUS_LEGACY_BITS = {
+    description.key: description.bit for description in PUMP_MODBUS_LEGACY_FAULTS
+}
+PUMP_MODBUS_V15_BITS = {
+    description.key: description.bit for description in PUMP_MODBUS_V15_FAULTS
+}
+
+# Create a stable union of all documented Modbus fault entities. Entities not
+# present in the currently detected map remain unavailable rather than being
+# created/removed when register 2008 is learned after startup.
+_modbus_descriptions = {description.key: description for description in PUMP_MODBUS_LEGACY_FAULTS}
+_modbus_descriptions.update(
+    {
+        description.key: description
+        for description in PUMP_MODBUS_V15_FAULTS
+        if description.key not in _modbus_descriptions
+    }
+)
+PUMP_MODBUS_ALL_FAULTS = tuple(_modbus_descriptions.values())
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up connectivity, global alarm and protocol-specific fault bits."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     protocol = coordinator.client.protocol
-
-    if protocol == PROTOCOL_ISAVER:
-        faults = ISAVER_FAULTS
-    else:
-        data = coordinator.data
-        faults = (
-            PUMP_MODBUS_V15_FAULTS
-            if data is not None and data.mode_code in PUMP_MODBUS_V15_MODE_CODES
-            else PUMP_MODBUS_LEGACY_FAULTS
-        )
+    faults = ISAVER_FAULTS if protocol == PROTOCOL_ISAVER else PUMP_MODBUS_ALL_FAULTS
 
     async_add_entities(
         [
@@ -158,7 +169,7 @@ class AquagemAlarm(AquagemEntity, BinarySensorEntity):
 
 
 class AquagemFaultBinarySensor(AquagemEntity, BinarySensorEntity):
-    """One documented fault bit for the active protocol."""
+    """One documented fault bit for the active protocol/map."""
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -167,8 +178,27 @@ class AquagemFaultBinarySensor(AquagemEntity, BinarySensorEntity):
         super().__init__(coordinator, entry)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._v15_seen = False
+
+    def _active_bit(self) -> int | None:
+        """Resolve the bit from the currently known Modbus fault map."""
+        if self.entity_description.protocol != PROTOCOL_PUMP_MODBUS:
+            return self.entity_description.bit
+
+        data = self.coordinator.data
+        if data is not None and data.mode_code in PUMP_MODBUS_V15_MODE_CODES:
+            self._v15_seen = True
+
+        fault_bits = PUMP_MODBUS_V15_BITS if self._v15_seen else PUMP_MODBUS_LEGACY_BITS
+        return fault_bits.get(self.entity_description.key)
+
+    @property
+    def available(self) -> bool:
+        """Hide fault keys that do not exist in the active Modbus map."""
+        return super().available and self._active_bit() is not None
 
     @property
     def is_on(self):
         data = self.coordinator.data
-        return bool(data and data.fault_code & (1 << self.entity_description.bit))
+        bit = self._active_bit()
+        return bool(data and bit is not None and data.fault_code & (1 << bit))
