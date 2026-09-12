@@ -375,9 +375,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         reconfigure_entry = self._get_reconfigure_entry()
         transport = reconfigure_entry.data.get(CONF_TRANSPORT, TRANSPORT_TCP)
         if transport == TRANSPORT_SERIAL:
-            return await self._async_step_reconfigure_serial(
-                reconfigure_entry, user_input
-            )
+            return await self.async_step_reconfigure_serial(user_input)
         return await self._async_step_reconfigure_tcp(reconfigure_entry, user_input)
 
     async def _async_step_reconfigure_tcp(self, reconfigure_entry, user_input):
@@ -458,7 +456,10 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reconfigure", data_schema=schema, errors=errors
         )
 
-    async def _async_step_reconfigure_serial(self, reconfigure_entry, user_input):
+    async def async_step_reconfigure_serial(self, user_input=None):
+        """Reconfigure a serial-connected entry (public: reused by Home Assistant
+        directly when the "reconfigure_serial" form is submitted)."""
+        reconfigure_entry = self._get_reconfigure_entry()
         errors = {}
         protocol = reconfigure_entry.data.get(CONF_PROTOCOL, PROTOCOL_PUMP_MODBUS)
 
