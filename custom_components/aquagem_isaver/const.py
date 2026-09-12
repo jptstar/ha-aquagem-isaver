@@ -55,6 +55,13 @@ SPEED_STEP = 100
 OFF_COMMAND = 1
 ISAVER_BAUDRATE = 1200
 
+# Field behavior of the proprietary C3/D0 profile: after a D0 remote speed
+# command, C3 status reads made more often than 60 seconds keep that remote
+# override alive. Local-panel assist therefore needs a silence longer than that
+# watchdog before the inverter can fall back to its stored/manual state.
+ISAVER_REMOTE_OVERRIDE_SECONDS = 60
+ISAVER_MIN_IDLE_SCAN_INTERVAL = 70
+
 # Direct serial iSaver uses the same validated C3/D0 framing as TCP. Keep a
 # conservative 50 ms silence between transactions at 1200 baud.
 ISAVER_SERIAL_GUARD_SECONDS = 0.05

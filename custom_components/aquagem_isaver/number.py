@@ -12,7 +12,6 @@ from .const import (
     DEFAULT_MIN_OPERATING_SPEED,
     DOMAIN,
     MAX_IDLE_SCAN_INTERVAL,
-    MIN_IDLE_SCAN_INTERVAL,
 )
 from .entity import AquagemEntity
 
@@ -90,9 +89,7 @@ class AquagemIdlePollingIntervalNumber(AquagemEntity, NumberEntity, RestoreEntit
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_idle_polling_interval"
-        self._attr_native_min_value = max(
-            MIN_IDLE_SCAN_INTERVAL, coordinator.normal_scan_interval_seconds
-        )
+        self._attr_native_min_value = coordinator.minimum_idle_scan_interval_seconds
 
     @property
     def available(self) -> bool:
