@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aquagem Pump Contributors & Credits — Home Assistant Integration</title>
+<link rel="canonical" href="https://jptstar.github.io/ha-aquagem-isaver/contributors.html">
+<link rel="icon" href="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
+<meta name="description" content="Credits for Aquagem Pump, the local Home Assistant integration for Aquagem pool pumps: DM15 / INVERsilence real-hardware validation by Antonio Garcia, iSaver protocol validation, RS485 research and project maintenance.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#074f66">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aquagem Pump">
+<meta property="og:title" content="Aquagem Pump Contributors & Credits">
+<meta property="og:description" content="Real-hardware validation, protocol research and community contributions behind Aquagem Pump for Home Assistant.">
+<meta property="og:url" content="https://jptstar.github.io/ha-aquagem-isaver/contributors.html">
+<meta property="og:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Aquagem Pump Contributors & Credits">
+<meta name="twitter:description" content="Real-hardware testing and validation behind Aquagem Pump for Home Assistant.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"AboutPage",
+  "name":"Aquagem Pump Contributors & Credits",
+  "url":"https://jptstar.github.io/ha-aquagem-isaver/contributors.html",
+  "description":"Credits for community contributions and real-hardware validation of the Aquagem Pump Home Assistant integration.",
+  "dateModified":"2026-09-12",
+  "isPartOf":{"@type":"WebSite","name":"Aquagem Pump","url":"https://jptstar.github.io/ha-aquagem-isaver/"}
+}
+</script>
+<style>
+:root{--ink:#102736;--muted:#607585;--paper:#f3f8f9;--card:#fff;--line:#d9e8eb;--blue:#0b6fa4;--green:#16845d;--green-soft:#e8f7f1;--shadow:0 18px 50px rgba(9,65,83,.10);--max:980px}*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--paper);font:16px/1.58 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--blue)}header{padding:26px 0 64px;color:#fff;background:linear-gradient(145deg,#042b3d 0%,#07536d 63%,#0a8390 100%)}.wrap{width:min(var(--max),calc(100% - 32px));margin:auto}.brand{color:#fff;text-decoration:none;font-weight:850}.hero{padding-top:48px}h1{margin:0;font-size:clamp(40px,7vw,66px);line-height:1;letter-spacing:-.05em}.lead{max-width:780px;color:#d9edf3;font-size:19px}.strap{font-weight:850}main{margin-top:-30px;padding-bottom:70px}section{margin-top:28px;padding:32px;border:1px solid var(--line);border-radius:24px;background:var(--card);box-shadow:var(--shadow)}h2{margin:0 0 10px;font-size:32px;letter-spacing:-.03em}.intro{color:var(--muted);font-size:18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}.card{padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}.role{display:inline-block;margin-bottom:10px;padding:5px 9px;border-radius:999px;background:var(--green-soft);color:#0d684d;font-size:12px;font-weight:850}.card strong{display:block;font-size:20px;margin-bottom:6px}.card p{margin:0;color:var(--muted)}footer{padding:0 0 40px;color:var(--muted);text-align:center;font-size:14px}@media(max-width:720px){.grid{grid-template-columns:1fr}section{padding:24px}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><a class="brand" href="./">← Aquagem Pump</a><div class="hero"><h1>Aquagem Pump contributors &amp; credits</h1><p class="lead">Who contributed to Aquagem Pump, and exactly what each contribution helped validate, document or implement.</p><p class="strap">Open source · Independent · Real-hardware validated</p></div></div></header>
+<main class="wrap">
+<section><h2>Project author &amp; maintainer</h2><div class="card"><span class="role">Author · development · maintenance</span><strong>Jean-Philippe TESTART (jptstar)</strong><p>Created Aquagem Pump and maintains the Home Assistant integration, protocol implementation, entities, RS485 transports, documentation, releases and project website.</p></div></section>
+<section><h2>Who contributed to what</h2><p class="intro">Credits are intentionally specific: each person is listed only for the hardware validation or project input they directly contributed.</p><div class="grid">
+<div class="card"><span class="role">DM15 / INVERsilence real-hardware validation</span><strong>Antonio Garcia</strong><p>Independently validated the Aquagem DM15 / INVERsilence Modbus profile on real hardware. His testing confirmed the core Modbus read map, the native 5% capacity-control grid, register <code>2004</code> as electrical power in watts, and the guarded write / OFF control sequence used by the integration.</p></div>
+</div></section>
+<section><h2>Testers and issue reporters</h2><p class="intro">Thanks also to everyone sharing diagnostics, protocol captures, device variants, gateway settings, bug reports and real-hardware feedback. Concrete compatibility validation can be added here with the contributor credited for the specific work.</p></section>
+<section><h2>Independent project</h2><p class="intro">Aquagem Pump is unofficial and independent. It is not developed, approved, endorsed or maintained by Aquagem or by the contributors listed above. Product and project names remain the property of their respective owners.</p></section>
+</main>
+<footer class="wrap">Aquagem Pump · by <a href="https://github.com/jptstar">jptstar</a> · <a href="https://github.com/jptstar/ha-aquagem-isaver">GitHub</a> · Home Assistant · Local RS485 control</footer>
+</body></html>
