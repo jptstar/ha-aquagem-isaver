@@ -1,9 +1,11 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows:
+      - Validate
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -11,10 +13,19 @@ permissions:
 
 jobs:
   release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - name: Checkout repository
+      - name: Checkout validated commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
 
       - name: Read integration version
         id: version
@@ -51,7 +62,7 @@ jobs:
           fi
 
           gh release create "$TAG" \
-            --target "$GITHUB_SHA" \
+            --target "$TARGET_SHA" \
             --title "Aquagem Pump ${VERSION}" \
             --generate-notes \
             $PRERELEASE_FLAG
