@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="format-detection" content="telephone=no">
-  <title>Aquagem Pump — DM15, INVERsilence & iSaver in Home Assistant</title>
-  <meta name="description" content="Control Aquagem DM15 / INVERsilence and iSaver Power 1100 locally in Home Assistant with Aquagem Pump 0.4.0. USB-RS485, transparent RS485/TCP, WaveShare setup, multi-device Modbus, power, runtime and diagnostics; no cloud.">
-  <meta name="keywords" content="Aquagem Pump, Aquagem Home Assistant, Aquagem DM15 Home Assistant, INVERsilence Home Assistant, iSaver Power 1100 Home Assistant, WaveShare RS485 Home Assistant, Aquagem RS485, Aquagem Modbus, USB RS485 Home Assistant, Modbus RTU Home Assistant, Aquagem register 2004 power, pool pump Home Assistant, HACS pool pump">
+  <title>Aquagem Pump 0.4.3 — DM15, INVERsilence & iSaver in Home Assistant</title>
+  <meta name="description" content="Control Aquagem DM15, INVERsilence and iSaver Power 1100 locally in Home Assistant over RS485. Aquagem Pump 0.4.3 adds Return to local control, a 70-second protected handover by default, a live countdown and a local-panel availability indicator. USB-RS485, transparent RS485/TCP, WaveShare, Modbus RTU, no cloud.">
+  <meta name="keywords" content="Aquagem Pump, Aquagem Home Assistant, Aquagem DM15 Home Assistant, INVERsilence Home Assistant, iSaver Power 1100 Home Assistant, Aquagem local panel, return to local control, Aquagem RS485, Aquagem Modbus, WaveShare RS485 Home Assistant, USB RS485 Home Assistant, pool pump Home Assistant, HACS pool pump">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <meta name="theme-color" content="#074f66">
   <link rel="canonical" href="https://jptstar.github.io/ha-aquagem-isaver/">
@@ -14,14 +14,14 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Aquagem Pump">
-  <meta property="og:title" content="Aquagem Pump — DM15, INVERsilence & iSaver in Home Assistant">
-  <meta property="og:description" content="Local Home Assistant control for Aquagem DM15 / INVERsilence and iSaver Power 1100 over USB-RS485 or transparent RS485/TCP. Multi-device Modbus, power, runtime, diagnostics and validated WaveShare setup.">
+  <meta property="og:title" content="Aquagem Pump 0.4.3 — local Aquagem control in Home Assistant">
+  <meta property="og:description" content="Local RS485 control for Aquagem DM15 / INVERsilence and iSaver Power 1100. Return-to-local-control handover is enabled by default with a configurable quiet window, countdown and panel-availability indicator.">
   <meta property="og:url" content="https://jptstar.github.io/ha-aquagem-isaver/">
   <meta property="og:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
   <meta property="og:image:alt" content="Aquagem Pump Home Assistant integration">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Aquagem Pump — Aquagem pumps in Home Assistant">
-  <meta name="twitter:description" content="Local RS485 control for Aquagem DM15, INVERsilence and iSaver Power 1100 in Home Assistant. USB-RS485 or RS485/TCP, no cloud.">
+  <meta name="twitter:title" content="Aquagem Pump 0.4.3 — Aquagem pumps in Home Assistant">
+  <meta name="twitter:description" content="Local RS485 control for Aquagem DM15, INVERsilence and iSaver Power 1100, including protected return to local panel control.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
 
   <script type="application/ld+json">
@@ -37,15 +37,14 @@
       {
         "@type":"SoftwareSourceCode",
         "name":"Aquagem Pump",
-        "softwareVersion":"0.4.0",
+        "softwareVersion":"0.4.3",
         "codeRepository":"https://github.com/jptstar/ha-aquagem-isaver",
         "runtimePlatform":"Home Assistant 2026.9 or newer",
         "programmingLanguage":"Python",
         "license":"https://www.gnu.org/licenses/gpl-3.0.html",
-        "description":"Open-source Home Assistant integration for local Aquagem pump control via USB-RS485 or transparent RS485/TCP, including DM15 / INVERsilence Modbus, iSaver Power 1100 C3/D0 and a validated WaveShare RS485-to-Ethernet configuration.",
-        "keywords":["Aquagem","Home Assistant","DM15","INVERsilence","iSaver Power 1100","WaveShare","RS485","USB-RS485","Modbus RTU","HACS","pool pump"],
-        "author":{"@type":"Person","name":"Jean-Philippe TESTART","url":"https://github.com/jptstar"},
-        "contributor":{"@type":"Person","name":"Antonio Garcia","description":"Independent DM15 / INVERsilence real-hardware validation"}
+        "description":"Open-source Home Assistant integration for local Aquagem pump control via USB-RS485 or transparent RS485/TCP. Supports DM15 / INVERsilence Modbus and iSaver Power 1100 C3/D0, with configurable return-to-local-control handover after Home Assistant commands.",
+        "keywords":["Aquagem","Home Assistant","DM15","INVERsilence","iSaver Power 1100","local panel","RS485","WaveShare","USB-RS485","Modbus RTU","HACS","pool pump"],
+        "author":{"@type":"Person","name":"Jean-Philippe TESTART","url":"https://github.com/jptstar"}
       },
       {
         "@type":"FAQPage",
@@ -53,27 +52,32 @@
           {
             "@type":"Question",
             "name":"Can Aquagem DM15 or INVERsilence pumps be controlled from Home Assistant?",
-            "acceptedAnswer":{"@type":"Answer","text":"Yes. Aquagem Pump supports the validated DM15 / INVERsilence Modbus profile with ON/OFF, 30–100% control in 5% steps, power monitoring and diagnostics through transparent RS485/TCP or direct USB-RS485."}
+            "acceptedAnswer":{"@type":"Answer","text":"Yes. Aquagem Pump supports the validated DM15 / INVERsilence Modbus profile with ON/OFF, 30–100% control in 5% steps, power monitoring and diagnostics over transparent RS485/TCP or direct USB-RS485."}
           },
           {
             "@type":"Question",
-            "name":"Can I use a WaveShare RS485-to-Ethernet gateway with Aquagem Pump?",
-            "acceptedAnswer":{"@type":"Answer","text":"Yes. A WaveShare RS485-to-Ethernet gateway has been validated with a real Aquagem iSaver Power 1100 in transparent TCP Server mode. The same transparent gateway principle can be used for Aquagem Modbus pumps such as DM15 with the correct 9600-8-N-1 serial settings."}
+            "name":"Can Aquagem iSaver Power 1100 be controlled from Home Assistant?",
+            "acceptedAnswer":{"@type":"Answer","text":"Yes. Aquagem Pump supports the validated proprietary iSaver C3/D0 profile at 1200-8-N-1 with 1200–2900 rpm control and local RS485 status reporting."}
           },
           {
             "@type":"Question",
-            "name":"Can several Aquagem Modbus pumps share one RS485 bus?",
-            "acceptedAnswer":{"@type":"Answer","text":"Yes. Version 0.4.0 supports several Modbus slave addresses on one USB-RS485 adapter or transparent RS485/TCP gateway and schedules complete transactions through a shared FIFO bus manager."}
+            "name":"How does Return to local control work?",
+            "acceptedAnswer":{"@type":"Answer","text":"After a Home Assistant write, Aquagem Pump pauses pump status traffic for a protected window so the physical panel can regain control. It is enabled by default, uses 70 seconds by default, can be adjusted from 50 to 180 seconds, exposes a live countdown and a binary local-panel availability indicator."}
+          },
+          {
+            "@type":"Question",
+            "name":"Why is a quiet window needed on iSaver?",
+            "acceptedAnswer":{"@type":"Answer","text":"Real-hardware testing showed that iSaver remote priority lasts about 60 seconds after a D0 command and that C3 reads during that window prolong the remote priority. After a true silent handover, later C3 reads do not restore the old D0 setpoint."}
+          },
+          {
+            "@type":"Question",
+            "name":"Can I use a WaveShare RS485-to-Ethernet gateway?",
+            "acceptedAnswer":{"@type":"Answer","text":"Yes. A WaveShare transparent TCP Server configuration has been validated on a real iSaver Power 1100. Keeping the TCP connection open without sending RS485 traffic did not prevent the local-control handover during validation."}
           },
           {
             "@type":"Question",
             "name":"Does Aquagem Pump require the Aquagem cloud?",
-            "acceptedAnswer":{"@type":"Answer","text":"No. Pump communication stays local between Home Assistant and the RS485 connection."}
-          },
-          {
-            "@type":"Question",
-            "name":"What is Aquagem Modbus register 2004?",
-            "acceptedAnswer":{"@type":"Answer","text":"On the validated DM15 / INVERsilence profile, register 2004 reports electrical power in watts and is exposed as a native Home Assistant power sensor."}
+            "acceptedAnswer":{"@type":"Answer","text":"No. Communication stays local between Home Assistant and the RS485 connection."}
           }
         ]
       }
@@ -83,41 +87,32 @@
 
   <style>
     :root{--ink:#102736;--muted:#607585;--paper:#f3f8f9;--card:#fff;--line:#d9e8eb;--aqua:#0aa3a7;--blue:#0b6fa4;--green:#16845d;--green-soft:#e8f7f1;--cyan-soft:#e8f7fa;--shadow:0 18px 50px rgba(9,65,83,.10);--max:1120px}
-    *{box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:clip}body{margin:0;color:var(--ink);background:radial-gradient(circle at 92% 3%,rgba(10,163,167,.13),transparent 26rem),var(--paper);font:16px/1.58 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:clip}img{max-width:100%;height:auto}a{color:var(--blue)}code{overflow-wrap:anywhere}.wrap{width:min(var(--max),calc(100% - 32px));margin-inline:auto}.topline{height:5px;background:linear-gradient(90deg,var(--aqua),var(--blue),#4f63ce)}header{padding:22px 0 72px;color:#fff;background:linear-gradient(145deg,#042b3d 0%,#07536d 63%,#0a8390 100%)}nav{display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:850}.brand img{width:44px;height:44px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.22)}.navlinks{display:flex;gap:18px;align-items:center}.navlinks a{color:#d9f6fb;text-decoration:none;font-size:14px;font-weight:750}.hero{display:grid;grid-template-columns:1.25fr .75fr;gap:46px;align-items:center;padding-top:60px}.eyebrow{margin:0 0 17px;color:#8fe7ed;text-transform:uppercase;letter-spacing:.13em;font-size:13px;font-weight:850}h1{max-width:850px;margin:0;font-size:clamp(42px,6vw,70px);line-height:1;letter-spacing:-.05em}.slogan{margin:20px 0 0;font-size:24px;font-weight:900}.lead{max-width:800px;margin:21px 0 0;color:#d9edf3;font-size:20px}.strap{margin-top:18px;font-weight:850}.actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:28px}.button{display:inline-block;padding:12px 17px;border-radius:11px;text-decoration:none;font-weight:850}.hacs-badge{display:inline-flex;align-items:center}.hacs-badge img{display:block;height:44px;width:auto;max-width:100%}.secondary{color:#fff;border:1px solid rgba(255,255,255,.27);background:rgba(255,255,255,.08)}.preview-card{padding:26px;border:1px solid rgba(255,255,255,.17);border-radius:24px;background:rgba(255,255,255,.09);backdrop-filter:blur(12px)}.preview-kicker{display:block;color:#8fe7ed;letter-spacing:.08em;font-size:12px;font-weight:900}.preview-card h3{margin:9px 0 14px;font-size:26px}.preview-primary{margin-top:14px;padding:15px 0 4px;border-top:1px solid rgba(255,255,255,.11)}.preview-primary strong{display:block;font-size:22px}.preview-primary span{display:block;margin-top:6px;color:#d8edf2;font-size:14px}.preview-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.preview-stat{min-height:92px;padding:13px;border-radius:14px;background:rgba(255,255,255,.08)}.preview-stat strong{display:block;font-size:27px;line-height:1}.preview-stat span{display:block;margin-top:7px;color:#d8edf2;font-size:13px}.preview-note{margin-top:14px;padding-top:13px;border-top:1px solid rgba(255,255,255,.10);color:#bfe1ea;font-size:13px;font-weight:700}main{margin-top:-30px;padding-bottom:72px}section{margin-top:28px;padding:34px;border:1px solid var(--line);border-radius:24px;background:var(--card);box-shadow:var(--shadow)}h2{margin:0 0 10px;font-size:clamp(28px,4vw,40px);letter-spacing:-.04em}h3{margin:0 0 10px}.intro{max-width:930px;margin:0;color:var(--muted);font-size:18px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}.card,.panel,.step{padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}.card strong{display:block;margin-bottom:7px;font-size:18px}.muted{color:var(--muted)}.badge{display:inline-block;margin-bottom:12px;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:850}.good{color:var(--green);background:var(--green-soft)}.info{color:#08728b;background:var(--cyan-soft)}.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}.panel h3{font-size:22px}.panel ul{margin:12px 0 0;padding-left:20px}.panel li+li{margin-top:6px}.steps{counter-reset:step;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:25px}.step:before{counter-increment:step;content:counter(step);display:grid;place-items:center;width:34px;height:34px;margin-bottom:14px;border-radius:50%;color:#fff;background:var(--blue);font-weight:900}.step p{margin:6px 0 0;color:var(--muted)}table{width:100%;margin-top:24px;border-collapse:collapse}th,td{padding:14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.07em}.callout{margin-top:22px;padding:18px 20px;border:1px solid #bfe7d6;border-radius:16px;background:var(--green-soft);color:#0d684d}.callout strong{display:block;margin-bottom:5px;font-size:18px}.faq{margin-top:22px}.faq details{padding:17px 0;border-bottom:1px solid var(--line)}.faq summary{cursor:pointer;font-weight:850;font-size:18px}.faq p{margin:8px 0 0;color:var(--muted)}footer{padding:8px 0 42px;color:var(--muted);text-align:center;font-size:14px}@media(max-width:830px){.hero,.steps,.two,.grid{grid-template-columns:1fr}.navlinks{display:none}.hero{gap:28px;padding-top:48px}section{padding:24px}}@media(max-width:700px){.wrap{width:calc(100% - 24px)}h1{font-size:clamp(36px,10.5vw,48px)}.actions{display:grid;grid-template-columns:1fr}.button{width:100%;text-align:center}.hacs-badge{width:max-content;max-width:100%}.preview-stats{grid-template-columns:1fr}table,thead,tbody,tr,td{display:block;width:100%}thead{display:none}tr{margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:14px}td{border:0;padding:7px 0}td:before{content:attr(data-label);display:block;color:var(--muted);font-size:11px;font-weight:850;text-transform:uppercase}}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--paper);font:16px/1.58 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--blue)}.wrap{width:min(var(--max),calc(100% - 32px));margin-inline:auto}header{padding:24px 0 72px;color:#fff;background:linear-gradient(145deg,#042b3d 0%,#07536d 63%,#0a8390 100%)}nav{display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:850}.brand img{width:44px;height:44px;border-radius:12px}.navlinks{display:flex;gap:18px}.navlinks a{color:#d9f6fb;text-decoration:none;font-size:14px;font-weight:750}.hero{display:grid;grid-template-columns:1.25fr .75fr;gap:42px;align-items:center;padding-top:58px}.eyebrow{color:#8fe7ed;text-transform:uppercase;letter-spacing:.13em;font-size:13px;font-weight:850}h1{margin:0;font-size:clamp(42px,6vw,70px);line-height:1;letter-spacing:-.05em}.lead{max-width:820px;color:#d9edf3;font-size:20px}.actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:26px}.button{display:inline-block;padding:12px 17px;border-radius:11px;text-decoration:none;font-weight:850;color:#fff;border:1px solid rgba(255,255,255,.27);background:rgba(255,255,255,.08)}.hacs-badge img{height:44px}.preview{padding:26px;border:1px solid rgba(255,255,255,.17);border-radius:24px;background:rgba(255,255,255,.09)}.preview strong{display:block;font-size:24px}.preview p{color:#d8edf2}.hand{font-size:44px;line-height:1;margin-bottom:12px}main{margin-top:-30px;padding-bottom:72px}section{margin-top:28px;padding:34px;border:1px solid var(--line);border-radius:24px;background:var(--card);box-shadow:var(--shadow)}h2{margin:0 0 10px;font-size:clamp(28px,4vw,40px);letter-spacing:-.04em}.intro{max-width:930px;margin:0;color:var(--muted);font-size:18px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}.card{padding:22px;border:1px solid var(--line);border-radius:18px;background:#f8fbfc}.card strong{display:block;margin-bottom:7px;font-size:18px}.muted{color:var(--muted)}.badge{display:inline-block;margin-bottom:12px;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:850}.good{color:var(--green);background:var(--green-soft)}.info{color:#08728b;background:var(--cyan-soft)}table{width:100%;margin-top:24px;border-collapse:collapse}th,td{padding:14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:13px;text-transform:uppercase}.sequence{margin-top:20px;padding:20px;border-radius:16px;background:#f7fbfc;border:1px solid var(--line);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}.callout{margin-top:22px;padding:18px 20px;border:1px solid #bfe7d6;border-radius:16px;background:var(--green-soft);color:#0d684d}.faq details{padding:17px 0;border-bottom:1px solid var(--line)}.faq summary{cursor:pointer;font-weight:850;font-size:18px}footer{padding:8px 0 42px;color:var(--muted);text-align:center;font-size:14px}@media(max-width:830px){.hero,.grid{grid-template-columns:1fr}.navlinks{display:none}section{padding:24px}}@media(max-width:700px){.wrap{width:calc(100% - 24px)}.actions{display:grid}.button{width:100%;text-align:center}table,thead,tbody,tr,td{display:block;width:100%}thead{display:none}tr{margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:14px}td{border:0;padding:7px 0}}
   </style>
 </head>
 <body>
-<div class="topline"></div>
 <header>
   <div class="wrap">
     <nav>
       <a class="brand" href="#top"><img src="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png" alt="Aquagem Pump Home Assistant icon"><span>Aquagem Pump</span></a>
-      <div class="navlinks"><a href="#features">Features</a><a href="#compatibility">Compatibility</a><a href="aquagem-dm15-home-assistant.html">DM15</a><a href="isaver-power-1100-home-assistant.html">iSaver</a><a href="waveshare-rs485-home-assistant.html">WaveShare</a><a href="#install">Install</a><a href="contributors.html">Credits</a></div>
+      <div class="navlinks"><a href="#features">Features</a><a href="#local-control">Local control</a><a href="#compatibility">Compatibility</a><a href="#install">Install</a></div>
     </nav>
-
     <div class="hero" id="top">
       <div>
         <p class="eyebrow">Aquagem pool pump integration · Home Assistant</p>
-        <h1>Aquagem pumps in Home Assistant over local RS485</h1>
-        <p class="slogan">Your pump. Your network. Your control.</p>
-        <p class="lead">Aquagem Pump 0.4.0 brings local control, runtime, power, energy and diagnostics for compatible <strong>DM15 / INVERsilence</strong> and <strong>iSaver Power 1100</strong> pumps.</p>
-        <p class="strap">USB-RS485 · RS485/TCP · Modbus RTU · Multi-device buses · No cloud</p>
+        <h1>Local Aquagem pump control over RS485</h1>
+        <p class="lead">Aquagem Pump 0.4.3 controls compatible <strong>DM15 / INVERsilence</strong> and <strong>iSaver Power 1100</strong> pumps locally, with a protected return to the physical panel after Home Assistant commands.</p>
         <div class="actions">
           <a class="hacs-badge" href="https://my.home-assistant.io/redirect/hacs_repository/?owner=jptstar&amp;repository=ha-aquagem-isaver&amp;category=integration"><img alt="Add Aquagem Pump to HACS" src="https://my.home-assistant.io/badges/hacs_repository.svg"></a>
-          <a class="button secondary" href="https://github.com/jptstar/ha-aquagem-isaver">View on GitHub</a>
-          <a class="button secondary" href="https://github.com/jptstar/ha-aquagem-isaver/releases/tag/v0.4.0">Release 0.4.0</a>
+          <a class="button" href="https://github.com/jptstar/ha-aquagem-isaver">View on GitHub</a>
+          <a class="button" href="https://github.com/jptstar/ha-aquagem-isaver/releases">Releases</a>
         </div>
       </div>
-
-      <aside class="preview-card" aria-label="Aquagem Pump 0.4.0 summary">
-        <span class="preview-kicker">HOME ASSISTANT · LOCAL POLLING</span>
-        <h3>Aquagem Pump 0.4.0</h3>
-        <div class="preview-primary"><strong>Native local pump control</strong><span>ON/OFF, variable speed, alarms, power, optional energy diagnostics and persistent operating hours.</span></div>
-        <div class="preview-stats">
-          <div class="preview-stat"><strong>2</strong><span>supported RS485 transports</span></div>
-          <div class="preview-stat"><strong>3</strong><span>UI languages: EN · FR · ES</span></div>
-        </div>
-        <div class="preview-note">Supports several Modbus slave addresses on one shared physical RS485 bus.</div>
+      <aside class="preview">
+        <div class="hand">✋</div>
+        <strong>Return to local control</strong>
+        <p>Enabled by default. 70 s protected silence after a Home Assistant command, adjustable from 50 to 180 s.</p>
+        <p><b>New:</b> live countdown + local-panel availability binary sensor.</p>
       </aside>
     </div>
   </div>
@@ -125,115 +120,85 @@
 
 <main class="wrap">
   <section id="features">
-    <span class="badge info">0.4.0 STABLE</span>
-    <h2>Local Aquagem pump control without the cloud</h2>
-    <p class="intro">Aquagem Pump connects Home Assistant directly to the pump protocol. Version 0.4.0 supports both direct USB-RS485 and transparent RS485-to-TCP gateways.</p>
+    <span class="badge info">0.4.3 STABLE</span>
+    <h2>Local control without the cloud</h2>
+    <p class="intro">Use direct USB-RS485 or a transparent RS485/TCP gateway. Aquagem Pump handles protocol framing, status, control, diagnostics and local-panel handover inside Home Assistant.</p>
     <div class="grid">
-      <div class="card"><strong>Variable-speed fan</strong><span class="muted">Native Home Assistant fan entity for ON/OFF and variable-speed control.</span></div>
-      <div class="card"><strong>Direct USB-RS485</strong><span class="muted">Native Home Assistant serial stack for local Modbus RTU or iSaver C3/D0.</span></div>
-      <div class="card"><strong>Transparent RS485/TCP</strong><span class="muted">Use a WaveShare or equivalent gateway in transparent TCP Server mode. A real iSaver WaveShare setup is documented.</span></div>
-      <div class="card"><strong>Multi-device Modbus</strong><span class="muted">Several slave addresses can share one adapter or gateway with FIFO transaction scheduling.</span></div>
-      <div class="card"><strong>Operating hours</strong><span class="muted">Persistent software runtime counter with initial value, Set and Reset actions.</span></div>
-      <div class="card"><strong>Power &amp; energy</strong><span class="muted">DM-family power from register 2004 and optional V1.5 energy/diagnostic registers 2007–2009.</span></div>
+      <div class="card"><strong>Variable-speed control</strong><span class="muted">Native fan control for iSaver RPM or DM15 running capacity.</span></div>
+      <div class="card"><strong>USB-RS485</strong><span class="muted">Direct serial support through Home Assistant 2026.9+.</span></div>
+      <div class="card"><strong>RS485/TCP</strong><span class="muted">WaveShare and equivalent transparent TCP Server gateways.</span></div>
+      <div class="card"><strong>Return to local control</strong><span class="muted">Protected post-command silence, enabled by default.</span></div>
+      <div class="card"><strong>Live countdown</strong><span class="muted">Seconds remaining until the local panel is available again.</span></div>
+      <div class="card"><strong>Hand indicator</strong><span class="muted">Binary sensor turns on when local panel control is available.</span></div>
     </div>
+  </section>
+
+  <section id="local-control">
+    <span class="badge good">REAL-HARDWARE ISAVER VALIDATION</span>
+    <h2>Return to local control after Home Assistant commands</h2>
+    <p class="intro">On the validated iSaver Power 1100, a D0 command keeps remote priority for about 60 seconds. A C3 read during that active window prolongs the remote priority. After a true silent handover, later C3 reads do not restore the old D0 setpoint.</p>
+    <div class="sequence">Home Assistant command
+→ one D0 / Modbus write
+→ 70 s protected silence by default
+→ physical panel available again
+→ normal polling resumes
+→ later physical-panel changes are detected normally</div>
+    <div class="grid">
+      <div class="card"><strong>Return to local control</strong><span class="muted">Switch. Enabled by default.</span></div>
+      <div class="card"><strong>Delay before return</strong><span class="muted">Number entity. 50–180 s, default 70 s on new installations.</span></div>
+      <div class="card"><strong>Local panel control available</strong><span class="muted">Binary sensor with a hand icon. ON means the handover timer has expired.</span></div>
+    </div>
+    <div class="callout"><strong>WaveShare note.</strong> Validation showed that leaving the TCP connection open without sending RS485 traffic does not keep iSaver remote priority active. The decisive factor is pump-protocol traffic during the watchdog window.</div>
   </section>
 
   <section id="compatibility">
-    <span class="badge good">PROTOCOLS VALIDATED ON REAL HARDWARE</span>
-    <h2>Aquagem DM15, INVERsilence and iSaver compatibility</h2>
-    <p class="intro">Compatibility is based on protocol signatures and register behavior rather than guessing only from the commercial model name.</p>
-    <table aria-label="Aquagem Pump compatibility">
+    <h2>Aquagem compatibility</h2>
+    <table>
       <thead><tr><th>Hardware</th><th>Protocol</th><th>Serial</th><th>Control</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td data-label="Hardware"><a href="isaver-power-1100-home-assistant.html"><strong>iSaver Power 1100</strong></a></td><td data-label="Protocol">C3 / D0</td><td data-label="Serial"><code>1200-8-N-1</code></td><td data-label="Control">1200–2900 rpm · OFF=1</td><td data-label="Status">✅ Validated</td></tr>
-        <tr><td data-label="Hardware"><a href="aquagem-dm15-home-assistant.html"><strong>DM15 / INVERsilence</strong></a></td><td data-label="Protocol">Modbus RTU 03 / 10</td><td data-label="Serial"><code>9600-8-N-1</code></td><td data-label="Control">30–100% in 5% steps · OFF=0</td><td data-label="Status">✅ Validated</td></tr>
+        <tr><td><a href="isaver-power-1100-home-assistant.html"><strong>iSaver Power 1100</strong></a></td><td>C3 / D0</td><td><code>1200-8-N-1</code></td><td>1200–2900 rpm · OFF=1</td><td>✅ Validated</td></tr>
+        <tr><td><a href="aquagem-dm15-home-assistant.html"><strong>DM15 / INVERsilence</strong></a></td><td>Modbus RTU 03 / 10</td><td><code>9600-8-N-1</code></td><td>30–100% in 5% steps · OFF=0</td><td>✅ Validated</td></tr>
       </tbody>
     </table>
-    <div class="callout"><strong>Another Aquagem model?</strong><span>Other pumps using the same validated register layout may work. The project only marks a model as validated after repeatable real-hardware feedback.</span></div>
+    <p class="intro">The same post-command quiet-window mechanism is exposed for DM15 / standard Aquagem Modbus. Exact local-panel timing is firmware-dependent, so the delay remains configurable rather than claimed as universally 60 seconds.</p>
   </section>
 
   <section id="connections">
-    <h2>USB-RS485 or RS485/TCP</h2>
-    <p class="intro">Choose the transport that fits your installation. The protocol layer remains the same.</p>
-    <div class="two">
-      <div class="panel"><h3>Direct USB-RS485</h3><ul><li>Home Assistant 2026.9 or newer</li><li>Stable <code>/dev/serial/by-id/...</code> path recommended</li><li>DM15 / Modbus: 9600-8-N-1</li><li>iSaver: 1200-8-N-1</li><li>Uses Home Assistant's native <code>serialx</code> stack through the built-in USB dependency</li></ul></div>
-      <div class="panel"><h3>Transparent RS485/TCP</h3><ul><li>TCP Server mode, commonly port 502</li><li>8 data bits, no parity, 1 stop bit</li><li>No Modbus TCP-to-RTU conversion</li><li>Automatic read-only protocol detection available</li><li>Specific Modbus slave address can be selected for shared buses</li></ul></div>
-    </div>
-    <div class="callout"><strong>Validated WaveShare RS485-to-Ethernet example</strong><span>The project includes the real iSaver gateway configuration and screenshot, plus the corresponding 9600-8-N-1 guidance for DM15 / INVERsilence. <a href="waveshare-rs485-home-assistant.html">Open the WaveShare setup guide →</a></span></div>
-  </section>
-
-  <section id="multibus">
-    <h2>Several Modbus pumps on the same physical bus</h2>
-    <p class="intro">Aquagem Pump 0.4.0 identifies each Modbus device by its bus endpoint and slave address. Each pump remains a separate Home Assistant device while sharing the same RS485 line safely.</p>
-    <div class="steps">
-      <div class="step"><strong>Address each pump</strong><p>For example 0xAA, 0xAB and 0xAC behind one USB adapter or TCP gateway.</p></div>
-      <div class="step"><strong>Queue transactions FIFO</strong><p>A shared bus manager gives the line to waiting transactions in arrival order.</p></div>
-      <div class="step"><strong>Keep frames atomic</strong><p>Each request and its response complete before the next addressed pump can use the bus.</p></div>
-    </div>
-    <div class="callout"><strong>One line, one serial configuration.</strong><span>Do not mix the 1200-baud iSaver profile and the 9600-baud Modbus profile on the same wired RS485 bus.</span></div>
-  </section>
-
-  <section id="diagnostics">
-    <h2>Power, energy, runtime and diagnostics</h2>
-    <p class="intro">The integration exposes the pump state in Home Assistant without hiding unsupported values behind guesses.</p>
+    <h2>USB-RS485 or transparent RS485/TCP</h2>
     <div class="grid">
-      <div class="card"><strong>Operating hours</strong><span class="muted">Persistent software counter for every supported profile.</span></div>
-      <div class="card"><strong>Power</strong><span class="muted">Validated DM15 / INVERsilence register 2004 in watts.</span></div>
-      <div class="card"><strong>Energy</strong><span class="muted">Optional Modbus V1.5 register 2007 exposed in kWh when implemented.</span></div>
-      <div class="card"><strong>Mode &amp; software version</strong><span class="muted">Optional registers 2008 and 2009 remain available as diagnostics.</span></div>
-      <div class="card"><strong>Fault bits</strong><span class="muted">Protocol-specific binary sensors plus raw fault word and global alarm.</span></div>
-      <div class="card"><strong>Communication resilience</strong><span class="muted">Transient failures are debounced; offline polling slows and recovers on the first valid response.</span></div>
+      <div class="card"><strong>iSaver</strong><span class="muted">1200 baud, 8-N-1, proprietary validated C3/D0 profile.</span></div>
+      <div class="card"><strong>DM15 / INVERsilence</strong><span class="muted">9600 baud, 8-N-1, Aquagem Modbus RTU profile.</span></div>
+      <div class="card"><strong>WaveShare</strong><span class="muted">TCP Server, commonly port 502, Protocol None / transparent. <a href="waveshare-rs485-home-assistant.html">Setup guide →</a></span></div>
     </div>
   </section>
 
   <section id="docs">
-    <h2>Model and connection guides</h2>
-    <p class="intro">Like TSUN Local, Aquagem Pump now has dedicated indexable pages for the validated hardware paths and the most common RS485 gateway setup.</p>
+    <h2>Guides</h2>
     <div class="grid">
-      <a class="card" style="display:block;color:inherit;text-decoration:none" href="aquagem-dm15-home-assistant.html"><strong>DM15 / INVERsilence →</strong><span class="muted">Validated Modbus register map, 5% capacity control, power register 2004, shared RS485 buses and Antonio Garcia's validation credit.</span></a>
-      <a class="card" style="display:block;color:inherit;text-decoration:none" href="isaver-power-1100-home-assistant.html"><strong>iSaver Power 1100 →</strong><span class="muted">Validated C3/D0 framing, 1200–2900 rpm control, direct serial and transparent RS485/TCP.</span></a>
-      <a class="card" style="display:block;color:inherit;text-decoration:none" href="waveshare-rs485-home-assistant.html"><strong>WaveShare RS485/TCP →</strong><span class="muted">Validated iSaver gateway screenshot and transparent TCP Server settings, plus DM15 serial guidance.</span></a>
+      <a class="card" href="isaver-power-1100-home-assistant.html" style="color:inherit;text-decoration:none"><strong>iSaver Power 1100 →</strong><span class="muted">C3/D0 protocol, RPM control, local-panel handover and RS485 connection.</span></a>
+      <a class="card" href="aquagem-dm15-home-assistant.html" style="color:inherit;text-decoration:none"><strong>DM15 / INVERsilence →</strong><span class="muted">Modbus map, capacity control, power, diagnostics and local-panel coexistence.</span></a>
+      <a class="card" href="waveshare-rs485-home-assistant.html" style="color:inherit;text-decoration:none"><strong>WaveShare RS485/TCP →</strong><span class="muted">Validated transparent gateway configuration.</span></a>
     </div>
   </section>
 
   <section id="install">
     <span class="badge good">HACS</span>
-    <h2>Install Aquagem Pump 0.4.0</h2>
-    <p class="intro">Add the repository to HACS, install the integration, restart Home Assistant and add Aquagem Pump from Devices &amp; services.</p>
-    <div class="steps">
-      <div class="step"><strong>Add the repository</strong><p>Use the HACS button above or add <code>jptstar/ha-aquagem-isaver</code> as a custom Integration repository.</p></div>
-      <div class="step"><strong>Install &amp; restart</strong><p>Install the latest stable release and restart Home Assistant.</p></div>
-      <div class="step"><strong>Add your pump</strong><p>Choose RS485/TCP or direct serial, then follow protocol/address validation in the UI.</p></div>
-    </div>
+    <h2>Install Aquagem Pump</h2>
+    <p class="intro">Add <code>jptstar/ha-aquagem-isaver</code> as a HACS custom Integration repository, install the latest stable release, restart Home Assistant and add Aquagem Pump from Settings → Devices &amp; services.</p>
   </section>
 
   <section id="faq">
     <span class="badge info">FAQ</span>
     <h2>Aquagem Home Assistant FAQ</h2>
     <div class="faq">
-      <details open><summary>Can I control an Aquagem DM15 or INVERsilence from Home Assistant?</summary><p>Yes. The validated Modbus profile provides ON/OFF and 30–100% capacity control in 5% steps, plus power and diagnostics.</p></details>
-      <details><summary>Can I use a WaveShare RS485-to-Ethernet gateway?</summary><p>Yes. A WaveShare transparent TCP Server configuration has been validated on a real iSaver Power 1100. The dedicated setup guide includes the screenshot and the corresponding DM15 / INVERsilence baud settings.</p></details>
-      <details><summary>Can several pumps use the same RS485 adapter?</summary><p>Yes for addressed Modbus pumps. Version 0.4.0 supports several slave addresses on one USB-RS485 adapter or transparent RS485/TCP gateway and serializes transactions through a shared FIFO bus manager.</p></details>
-      <details><summary>Does the integration require the Aquagem cloud?</summary><p>No. Communication remains local between Home Assistant and the RS485 connection.</p></details>
-      <details><summary>Does it support direct USB-RS485?</summary><p>Yes. Home Assistant 2026.9+ can use a direct serial adapter through its native serial stack. The integration explicitly opens the supported serial profiles as 8-N-1.</p></details>
-      <details><summary>What does Modbus register 2004 report?</summary><p>On the validated DM15 / INVERsilence profile, register 2004 reports electrical power in watts and is exposed as a Home Assistant power sensor.</p></details>
-      <details><summary>Which languages are available?</summary><p>English, French and Spanish display translations are included.</p></details>
+      <details open><summary>Is Return to local control enabled by default?</summary><p>Yes. New installations use a 70-second protected silence after Home Assistant commands. The delay can be adjusted from 50 to 180 seconds.</p></details>
+      <details><summary>What does the hand binary sensor mean?</summary><p>“Local panel control available” is ON when the protected handover window has expired and the physical panel is expected to be available again.</p></details>
+      <details><summary>Does the countdown send RS485 traffic?</summary><p>No. The countdown is calculated locally inside Home Assistant and does not poll the pump during the protected silence.</p></details>
+      <details><summary>Does the integration require the Aquagem cloud?</summary><p>No. Pump communication remains local.</p></details>
     </div>
-  </section>
-
-  <section id="project">
-    <h2>Credits &amp; independent community project</h2>
-    <p class="intro"><strong>Aquagem Pump is unofficial.</strong> It is independent and is not developed, approved, endorsed or maintained by Aquagem.</p>
-    <div class="two">
-      <div class="panel"><h3>Project</h3><p>Created and maintained by <strong>Jean-Philippe TESTART · jptstar</strong>.</p><p class="muted">Development, protocol implementation, Home Assistant entities, RS485 transports, releases and documentation.</p></div>
-      <div class="panel"><h3>DM15 validation</h3><p><strong>Antonio Garcia</strong></p><p class="muted">Independent real-hardware validation of the DM15 / INVERsilence Modbus read map, native 5% capacity grid, register 2004 power value and guarded write / OFF sequence.</p><p><a href="contributors.html">Full contributors &amp; credits →</a></p></div>
-    </div>
-    <p><a href="https://github.com/jptstar/ha-aquagem-isaver/blob/main/LICENSE">GNU General Public License v3.0 or later</a></p>
   </section>
 </main>
 
-<footer>
-  <div class="wrap">Aquagem Pump 0.4.0 · by <a href="https://github.com/jptstar">jptstar</a> · <a href="https://github.com/jptstar/ha-aquagem-isaver">GitHub</a> · Home Assistant · Local RS485 control</div>
-</footer>
+<footer><div class="wrap">Aquagem Pump 0.4.3 · by <a href="https://github.com/jptstar">jptstar</a> · Home Assistant · Local RS485 control</div></footer>
 </body>
 </html>
