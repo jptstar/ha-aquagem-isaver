@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -12,6 +13,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.const import Platform
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     DOMAIN,
@@ -45,8 +47,6 @@ ISAVER_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="input_voltage_error", translation_key="input_voltage_error", bit=15, protocol=PROTOCOL_ISAVER),
 )
 
-# Legacy Aquagem register map retained for backward compatibility with pumps that
-# do not expose the V1.5 2007..2009 extension.
 PUMP_MODBUS_LEGACY_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_dc_voltage_abnormal", translation_key="modbus_dc_voltage_abnormal", bit=0, protocol=PROTOCOL_PUMP_MODBUS),
     AquagemFaultDescription(key="modbus_ac_current_sampling_error", translation_key="modbus_ac_current_sampling_error", bit=1, protocol=PROTOCOL_PUMP_MODBUS),
@@ -66,8 +66,6 @@ PUMP_MODBUS_LEGACY_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_pfc_protection", translation_key="modbus_pfc_protection", bit=15, protocol=PROTOCOL_PUMP_MODBUS),
 )
 
-# Aquagem "Inverter Pool Pump RS485 Modbus V1.5 (for V1.0.0)" fault map.
-# Bit 0 is documented as reserved and intentionally has no entity.
 PUMP_MODBUS_V15_FAULTS: tuple[AquagemFaultDescription, ...] = (
     AquagemFaultDescription(key="modbus_communication_error", translation_key="modbus_communication_error", bit=1, protocol=PROTOCOL_PUMP_MODBUS),
     AquagemFaultDescription(key="modbus_no_water", translation_key="modbus_no_water", bit=2, protocol=PROTOCOL_PUMP_MODBUS),
@@ -93,8 +91,6 @@ PUMP_MODBUS_V15_BITS = {
     description.key: description.bit for description in PUMP_MODBUS_V15_FAULTS
 }
 
-# Keep a stable union only for the short period where the extended register map
-# is still genuinely unknown (for example after a transient read failure).
 _modbus_descriptions = {description.key: description for description in PUMP_MODBUS_LEGACY_FAULTS}
 _modbus_descriptions.update(
     {
@@ -112,8 +108,6 @@ def _modbus_faults_for_setup(coordinator) -> tuple[tuple[AquagemFaultDescription
     if data is not None and data.mode_code in PUMP_MODBUS_V15_MODE_CODES:
         return PUMP_MODBUS_V15_FAULTS, True
 
-    # An explicit illegal-address/function response on 2007..2009 proves that
-    # this pump does not expose the V1.5 block. A transient timeout does not.
     if getattr(coordinator.client, "_extended_modbus_supported", None) is False:
         return PUMP_MODBUS_LEGACY_FAULTS, True
 
@@ -138,7 +132,7 @@ def _remove_inactive_modbus_registry_entities(hass, entry, active_faults) -> Non
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up connectivity, global alarm and protocol-specific fault bits."""
+    """Set up connectivity, local-control state and protocol-specific fault bits."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     protocol = coordinator.client.protocol
 
@@ -149,9 +143,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
         if definitive_map:
             _remove_inactive_modbus_registry_entities(hass, entry, faults)
         else:
-            # Keep the safe union during a genuinely transient/unknown startup.
-            # As soon as the map becomes definitive, reload once so Home
-            # Assistant recreates only the applicable diagnostic entities.
             reload_scheduled = False
 
             def _reload_when_fault_map_is_known() -> None:
@@ -174,6 +165,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(
         [
             AquagemConnectivity(coordinator, entry),
+            AquagemLocalControlAvailable(coordinator, entry),
             AquagemAlarm(coordinator, entry),
             *(
                 AquagemFaultBinarySensor(coordinator, entry, description)
@@ -196,7 +188,6 @@ class AquagemConnectivity(AquagemEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        """Keep the connectivity diagnostic visible when the pump is offline."""
         return self.coordinator.data is not None
 
     @property
@@ -209,6 +200,45 @@ class AquagemConnectivity(AquagemEntity, BinarySensorEntity):
             "consecutive_failures": self.coordinator.consecutive_failures,
             "failure_threshold": self.coordinator.failure_threshold,
         }
+
+
+class AquagemLocalControlAvailable(AquagemEntity, BinarySensorEntity):
+    """Show when the physical panel can take control again."""
+
+    _attr_translation_key = "local_control_available"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_local_control_available"
+        self._last_available: bool | None = None
+
+    @property
+    def available(self) -> bool:
+        """This is local integration state and remains available offline."""
+        return True
+
+    @property
+    def is_on(self):
+        return self.coordinator.local_control_available
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._last_available = self.coordinator.local_control_available
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass,
+                self._handle_availability_tick,
+                timedelta(seconds=1),
+            )
+        )
+
+    def _handle_availability_tick(self, _now) -> None:
+        """Refresh only when the handover availability changes."""
+        current = self.coordinator.local_control_available
+        if current == self._last_available:
+            return
+        self._last_available = current
+        self.async_write_ha_state()
 
 
 class AquagemAlarm(AquagemEntity, BinarySensorEntity):
@@ -254,7 +284,6 @@ class AquagemFaultBinarySensor(AquagemEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        """Hide fault keys that do not exist in the active Modbus map."""
         return super().available and self._active_bit() is not None
 
     @property
