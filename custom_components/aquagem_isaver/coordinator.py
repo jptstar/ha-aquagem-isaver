@@ -87,6 +87,15 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
         """Return the adaptive idle polling interval."""
         return self._idle_scan_interval_seconds
 
+    def _reschedule_current_data(self) -> None:
+        """Apply a changed interval immediately without forcing a bus read."""
+        if self.data is not None and self.communication_online is not False:
+            # async_set_updated_data cancels the old timer and schedules the next
+            # refresh from the currently selected interval. Re-publishing the
+            # same validated data is intentional: changing a configuration entity
+            # must not itself generate an RS485/TCP transaction.
+            self.async_set_updated_data(self.data)
+
     def set_local_control_assist(self, enabled: bool) -> None:
         """Enable or disable adaptive local-panel-friendly polling."""
         self.local_control_assist = bool(enabled)
@@ -98,6 +107,7 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
                 self.update_interval = self._idle_update_interval
         elif self.communication_online is not False:
             self.update_interval = self._normal_update_interval
+        self._reschedule_current_data()
 
     def set_idle_scan_interval(self, seconds: int | float) -> None:
         """Update the local-control idle polling interval."""
@@ -111,6 +121,7 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
             and monotonic() >= self._fast_poll_until
         ):
             self.update_interval = self._idle_update_interval
+            self._reschedule_current_data()
 
     def _set_success_polling_interval(self, now: float) -> None:
         """Select fast or idle polling after a successful read."""
