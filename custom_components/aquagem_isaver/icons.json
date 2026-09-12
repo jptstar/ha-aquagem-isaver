@@ -6,6 +6,7 @@
       "fault_code": {"default": "mdi:code-braces"},
       "operating_hours": {"default": "mdi:timer-outline"},
       "last_change_source": {"default": "mdi:account-switch-outline"},
+      "local_control_remaining": {"default": "mdi:timer-sand"},
       "power": {"default": "mdi:flash"},
       "energy_consumption": {"default": "mdi:lightning-bolt-circle"},
       "mode_code": {"default": "mdi:identifier"},
@@ -14,7 +15,7 @@
     "number": {
       "speed_command": {"default": "mdi:speedometer"},
       "capacity_command": {"default": "mdi:speedometer"},
-      "idle_polling_interval": {"default": "mdi:timer-sand"}
+      "idle_polling_interval": {"default": "mdi:timer-cog-outline"}
     },
     "switch": {
       "local_control_assist": {"default": "mdi:hand-back-right-outline"}
@@ -24,6 +25,7 @@
     },
     "binary_sensor": {
       "connectivity": {"default": "mdi:lan-connect"},
+      "local_control_available": {"default": "mdi:hand-back-right"},
       "alarm": {"default": "mdi:alert-circle-outline"},
       "rs485_error": {"default": "mdi:alert-circle-outline"},
       "temperature_derating": {"default": "mdi:thermometer-alert"},
