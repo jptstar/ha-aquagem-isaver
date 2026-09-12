@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
+from contextlib import asynccontextmanager
 from time import monotonic
-from typing import Protocol
+from typing import AsyncIterator, Protocol
 
 
 class AquagemTransport(Protocol):
@@ -29,24 +31,69 @@ class AquagemTransport(Protocol):
         """Release transport resources."""
 
 
-class _SharedBusState:
-    """Serialize transactions from entries sharing one physical RS485 bus."""
+class Rs485BusManager:
+    """Explicit FIFO transaction queue shared by one physical RS485 bus."""
 
-    def __init__(self) -> None:
-        self.lock = asyncio.Lock()
+    def __init__(self, key: str) -> None:
+        self.key = key
         self.last_exchange_end = 0.0
+        self._waiters: deque[asyncio.Future[None]] = deque()
+
+    def _wake_next(self) -> None:
+        """Wake the oldest non-cancelled waiter."""
+        while self._waiters and self._waiters[0].cancelled():
+            self._waiters.popleft()
+        if self._waiters and not self._waiters[0].done():
+            self._waiters[0].set_result(None)
+
+    async def acquire(self) -> None:
+        """Queue for the bus and acquire it strictly in arrival order."""
+        waiter = asyncio.get_running_loop().create_future()
+        self._waiters.append(waiter)
+        if len(self._waiters) == 1:
+            waiter.set_result(None)
+
+        try:
+            await waiter
+        except BaseException:
+            # A cancelled waiter must never block the queue. If it had already
+            # reached the head, pass ownership to the next queued transaction.
+            was_head = bool(self._waiters and self._waiters[0] is waiter)
+            try:
+                self._waiters.remove(waiter)
+            except ValueError:
+                pass
+            if was_head:
+                self._wake_next()
+            raise
+
+    def release(self) -> None:
+        """Release the current transaction and wake the next FIFO waiter."""
+        if not self._waiters:
+            raise RuntimeError(f"RS485 bus {self.key} released without an owner")
+        self._waiters.popleft()
+        self._wake_next()
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[Rs485BusManager]:
+        """Hold exclusive bus ownership for one complete transaction."""
+        await self.acquire()
+        try:
+            yield self
+        finally:
+            self.release()
 
 
-_SHARED_BUSES: dict[str, _SharedBusState] = {}
+_SHARED_BUSES: dict[str, Rs485BusManager] = {}
 
 
-def _shared_bus(key: str) -> _SharedBusState:
-    """Return the process-wide transaction state for one bus endpoint."""
-    state = _SHARED_BUSES.get(key)
-    if state is None:
-        state = _SharedBusState()
-        _SHARED_BUSES[key] = state
-    return state
+def _shared_bus(key: str) -> Rs485BusManager:
+    """Return the process-wide FIFO manager for one bus endpoint."""
+    manager = _SHARED_BUSES.get(key)
+    if manager is None:
+        manager = Rs485BusManager(key)
+        _SHARED_BUSES[key] = manager
+    return manager
 
 
 async def _read_expected_reply(
@@ -77,7 +124,7 @@ def _is_serialx_exception(err: BaseException) -> bool:
 
 
 class TcpTransport:
-    """Transparent RS485-over-TCP transport with a shared bus lock."""
+    """Transparent RS485-over-TCP transport with a shared FIFO bus."""
 
     def __init__(self, host: str, port: int) -> None:
         self.host = host
@@ -89,7 +136,7 @@ class TcpTransport:
         return f"{self.host}:{self.port}"
 
     async def test_connection(self, timeout: float) -> None:
-        async with self._bus.lock:
+        async with self._bus.transaction():
             writer = None
             try:
                 async with asyncio.timeout(timeout):
@@ -103,9 +150,9 @@ class TcpTransport:
         self, request: bytes, reply_length: int, timeout: float
     ) -> bytes:
         # Several Modbus units can sit behind the same transparent gateway.
-        # Serialize the complete request/reply pair so two HA config entries
-        # cannot interleave frames on the same downstream RS485 bus.
-        async with self._bus.lock:
+        # Serialize the complete request/reply pair in explicit FIFO order so
+        # config entries cannot interleave frames on the downstream RS485 bus.
+        async with self._bus.transaction():
             writer = None
             try:
                 async with asyncio.timeout(timeout):
@@ -119,7 +166,7 @@ class TcpTransport:
                     await writer.wait_closed()
 
     async def send(self, request: bytes, timeout: float) -> None:
-        async with self._bus.lock:
+        async with self._bus.transaction():
             writer = None
             try:
                 async with asyncio.timeout(timeout):
@@ -208,7 +255,7 @@ class SerialTransport:
             await asyncio.sleep(remaining)
 
     async def test_connection(self, timeout: float) -> None:
-        async with self._bus.lock:
+        async with self._bus.transaction():
             try:
                 await self._open(timeout)
             finally:
@@ -218,9 +265,9 @@ class SerialTransport:
         self, request: bytes, reply_length: int, timeout: float
     ) -> bytes:
         # Direct serial entries sharing one adapter must never keep competing
-        # file descriptors open. Hold a shared lock for the complete RTU frame,
+        # file descriptors open. Hold FIFO ownership for the complete RTU frame,
         # then close so the next addressed device can use the same port.
-        async with self._bus.lock:
+        async with self._bus.transaction():
             await self._respect_inter_frame_delay()
             try:
                 await self._open(timeout)
@@ -245,7 +292,7 @@ class SerialTransport:
 
     async def send(self, request: bytes, timeout: float) -> None:
         """Send a write-only frame and release the shared serial bus."""
-        async with self._bus.lock:
+        async with self._bus.transaction():
             await self._respect_inter_frame_delay()
             try:
                 await self._open(timeout)
@@ -271,5 +318,5 @@ class SerialTransport:
                 self._bus.last_exchange_end = monotonic()
 
     async def close(self) -> None:
-        async with self._bus.lock:
+        async with self._bus.transaction():
             await self._drop_connection()
