@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0
+
+- Promote the 0.4.0 alpha series to the first stable release with direct serial / USB-RS485 support alongside transparent RS485/TCP gateways.
+- Add direct **iSaver Power 1100 C3/D0** serial transport at `1200-8-N-1` and direct **DM15 / Aquagem Modbus RTU** at `9600-8-N-1` using Home Assistant's `serialx` stack.
+- Allow multiple Modbus pumps on one physical RS485 bus, for both USB-RS485 and transparent RS485/TCP gateways, with one Home Assistant config entry per slave address.
+- Add an explicit shared **FIFO RS485 bus manager** so complete request/response transactions are serialized and queued in arrival order; cancelled waiters are removed cleanly.
+- Identify Modbus devices by bus endpoint plus slave address, preserving existing entity identities during migration.
+- Add persistent software **Operating hours** for every supported pump profile, including initial-value setup and Set/Reset actions from integration options.
+- Keep DM15 / standard Aquagem control on the validated 5% grid from 30% to 100%, with `3001 = 0` for OFF.
+- Expose Modbus register `2004` as electrical power in watts and optional V1.5 registers `2007..2009` as energy consumption, mode code and software version when available.
+- Harden serial reconnect/error handling, write-only iSaver D0 flushing, Modbus exception handling and offline retry behavior.
+- Fix serial reconfiguration flow dispatch and add CI checks for config-flow step handlers and FIFO bus ordering/cancellation.
+- Keep `serialx` supplied through Home Assistant's built-in `usb` dependency so the integration follows the compatible Home Assistant version instead of pinning its own copy.
+- Refresh README, HACS metadata and the project website/SEO for the stable 0.4.0 feature set.
+
 ## 0.3.5-beta.3
 
 - Use the same transparent Aquagem Pump icon for both `brand/icon.png` and `brand/logo.png`.
