@@ -1,0 +1,26 @@
+name: Package alpha8
+
+on:
+  push:
+    branches:
+      - alpha/0.4.0-alpha.8
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Create integration zip
+        run: |
+          zip -r aquagem_isaver-v0.4.0-alpha.8.zip custom_components/aquagem_isaver
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aquagem-isaver-alpha8
+          path: aquagem_isaver-v0.4.0-alpha.8.zip
+          retention-days: 1
