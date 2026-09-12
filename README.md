@@ -63,6 +63,20 @@ Typical gateway settings:
 
 Do **not** enable a gateway's “Modbus TCP to RTU” conversion mode.
 
+#### Validated WaveShare RS485-to-Ethernet example
+
+A **WaveShare RS485-to-Ethernet** gateway has been validated with a real **Aquagem iSaver Power 1100**. The screenshot below shows the working transparent TCP configuration used during validation.
+
+<p align="center">
+  <img src="docs/images/waveshare_isaver_setup.webp" width="900" alt="Validated WaveShare RS485-to-Ethernet settings for Aquagem iSaver Power 1100 with Home Assistant">
+</p>
+
+For the validated iSaver setup, use **1200 baud, 8 data bits, no parity, 1 stop bit, TCP Server, port 502, Protocol None and Multi-host disabled**. For a DM15 / Aquagem Modbus pump, keep the transparent gateway principle and use **9600-8-N-1** instead.
+
+The gateway is only a transparent transport: Aquagem Pump builds and validates the complete serial frames itself. Other transparent RS485/TCP gateways can work as well; WaveShare is documented here because this configuration was validated on real hardware.
+
+➡️ **[WaveShare RS485-to-Ethernet setup guide for Aquagem + Home Assistant](https://jptstar.github.io/ha-aquagem-isaver/waveshare-rs485-home-assistant.html)**
+
 ### Direct USB-RS485
 
 Home Assistant 2026.9+ can connect directly to a USB-RS485 adapter through its native serial stack.
