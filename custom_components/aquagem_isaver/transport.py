@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
+from contextlib import asynccontextmanager
 from time import monotonic
-from typing import Protocol
+from typing import AsyncIterator, Protocol
 
 
 class AquagemTransport(Protocol):
@@ -27,6 +29,71 @@ class AquagemTransport(Protocol):
 
     async def close(self) -> None:
         """Release transport resources."""
+
+
+class Rs485BusManager:
+    """Explicit FIFO transaction queue shared by one physical RS485 bus."""
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        self.last_exchange_end = 0.0
+        self._waiters: deque[asyncio.Future[None]] = deque()
+
+    def _wake_next(self) -> None:
+        """Wake the oldest non-cancelled waiter."""
+        while self._waiters and self._waiters[0].cancelled():
+            self._waiters.popleft()
+        if self._waiters and not self._waiters[0].done():
+            self._waiters[0].set_result(None)
+
+    async def acquire(self) -> None:
+        """Queue for the bus and acquire it strictly in arrival order."""
+        waiter = asyncio.get_running_loop().create_future()
+        self._waiters.append(waiter)
+        if len(self._waiters) == 1:
+            waiter.set_result(None)
+
+        try:
+            await waiter
+        except BaseException:
+            # A cancelled waiter must never block the queue. If it had already
+            # reached the head, pass ownership to the next queued transaction.
+            was_head = bool(self._waiters and self._waiters[0] is waiter)
+            try:
+                self._waiters.remove(waiter)
+            except ValueError:
+                pass
+            if was_head:
+                self._wake_next()
+            raise
+
+    def release(self) -> None:
+        """Release the current transaction and wake the next FIFO waiter."""
+        if not self._waiters:
+            raise RuntimeError(f"RS485 bus {self.key} released without an owner")
+        self._waiters.popleft()
+        self._wake_next()
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[Rs485BusManager]:
+        """Hold exclusive bus ownership for one complete transaction."""
+        await self.acquire()
+        try:
+            yield self
+        finally:
+            self.release()
+
+
+_SHARED_BUSES: dict[str, Rs485BusManager] = {}
+
+
+def _shared_bus(key: str) -> Rs485BusManager:
+    """Return the process-wide FIFO manager for one bus endpoint."""
+    manager = _SHARED_BUSES.get(key)
+    if manager is None:
+        manager = Rs485BusManager(key)
+        _SHARED_BUSES[key] = manager
+    return manager
 
 
 async def _read_expected_reply(
@@ -57,59 +124,66 @@ def _is_serialx_exception(err: BaseException) -> bool:
 
 
 class TcpTransport:
-    """Transparent RS485-over-TCP transport."""
+    """Transparent RS485-over-TCP transport with a shared FIFO bus."""
 
     def __init__(self, host: str, port: int) -> None:
         self.host = host
         self.port = port
+        self._bus = _shared_bus(f"tcp:{host}:{port}")
 
     @property
     def endpoint(self) -> str:
         return f"{self.host}:{self.port}"
 
     async def test_connection(self, timeout: float) -> None:
-        writer = None
-        try:
-            async with asyncio.timeout(timeout):
-                _, writer = await asyncio.open_connection(self.host, self.port)
-        finally:
-            if writer is not None:
-                writer.close()
-                await writer.wait_closed()
+        async with self._bus.transaction():
+            writer = None
+            try:
+                async with asyncio.timeout(timeout):
+                    _, writer = await asyncio.open_connection(self.host, self.port)
+            finally:
+                if writer is not None:
+                    writer.close()
+                    await writer.wait_closed()
 
     async def exchange(
         self, request: bytes, reply_length: int, timeout: float
     ) -> bytes:
-        writer = None
-        try:
-            async with asyncio.timeout(timeout):
-                reader, writer = await asyncio.open_connection(self.host, self.port)
-                writer.write(request)
-                await writer.drain()
-                return await _read_expected_reply(reader, request, reply_length)
-        finally:
-            if writer is not None:
-                writer.close()
-                await writer.wait_closed()
+        # Several Modbus units can sit behind the same transparent gateway.
+        # Serialize the complete request/reply pair in explicit FIFO order so
+        # config entries cannot interleave frames on the downstream RS485 bus.
+        async with self._bus.transaction():
+            writer = None
+            try:
+                async with asyncio.timeout(timeout):
+                    reader, writer = await asyncio.open_connection(self.host, self.port)
+                    writer.write(request)
+                    await writer.drain()
+                    return await _read_expected_reply(reader, request, reply_length)
+            finally:
+                if writer is not None:
+                    writer.close()
+                    await writer.wait_closed()
 
     async def send(self, request: bytes, timeout: float) -> None:
-        writer = None
-        try:
-            async with asyncio.timeout(timeout):
-                _, writer = await asyncio.open_connection(self.host, self.port)
-                writer.write(request)
-                await writer.drain()
-        finally:
-            if writer is not None:
-                writer.close()
-                await writer.wait_closed()
+        async with self._bus.transaction():
+            writer = None
+            try:
+                async with asyncio.timeout(timeout):
+                    _, writer = await asyncio.open_connection(self.host, self.port)
+                    writer.write(request)
+                    await writer.drain()
+            finally:
+                if writer is not None:
+                    writer.close()
+                    await writer.wait_closed()
 
     async def close(self) -> None:
         """TCP connections are intentionally short-lived."""
 
 
 class SerialTransport:
-    """Persistent direct serial transport backed by Home Assistant's serialx."""
+    """Direct serial transport sharing one physical RS485 bus safely."""
 
     def __init__(
         self,
@@ -123,7 +197,7 @@ class SerialTransport:
         self.inter_frame_delay = max(0.0, inter_frame_delay)
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
-        self._last_exchange_end = 0.0
+        self._bus = _shared_bus(f"serial:{device}:{baudrate}:8N1")
 
     @property
     def endpoint(self) -> str:
@@ -138,7 +212,7 @@ class SerialTransport:
         # dependency problem can never prevent a WaveShare/TCP entry from
         # loading or its config flow from opening.
         try:
-            from serialx import open_serial_connection
+            from serialx import Parity, StopBits, open_serial_connection
         except ImportError as err:
             raise OSError("Home Assistant serial support is unavailable") from err
 
@@ -147,6 +221,9 @@ class SerialTransport:
                 reader, writer = await open_serial_connection(
                     url=self.device,
                     baudrate=self.baudrate,
+                    bytesize=8,
+                    parity=Parity.NONE,
+                    stopbits=StopBits.ONE,
                 )
         except Exception as err:
             if _is_serialx_exception(err):
@@ -169,71 +246,77 @@ class SerialTransport:
                     raise
 
     async def _respect_inter_frame_delay(self) -> None:
-        if not self._last_exchange_end or not self.inter_frame_delay:
+        if not self._bus.last_exchange_end or not self.inter_frame_delay:
             return
         remaining = (
-            self.inter_frame_delay - (monotonic() - self._last_exchange_end)
+            self.inter_frame_delay - (monotonic() - self._bus.last_exchange_end)
         )
         if remaining > 0:
             await asyncio.sleep(remaining)
 
     async def test_connection(self, timeout: float) -> None:
-        try:
-            await self._open(timeout)
-        finally:
-            await self._drop_connection()
+        async with self._bus.transaction():
+            try:
+                await self._open(timeout)
+            finally:
+                await self._drop_connection()
 
     async def exchange(
         self, request: bytes, reply_length: int, timeout: float
     ) -> bytes:
-        await self._respect_inter_frame_delay()
-        try:
-            await self._open(timeout)
-            assert self._reader is not None
-            assert self._writer is not None
+        # Direct serial entries sharing one adapter must never keep competing
+        # file descriptors open. Hold FIFO ownership for the complete RTU frame,
+        # then close so the next addressed device can use the same port.
+        async with self._bus.transaction():
+            await self._respect_inter_frame_delay()
+            try:
+                await self._open(timeout)
+                assert self._reader is not None
+                assert self._writer is not None
 
-            async with asyncio.timeout(timeout):
-                self._writer.write(request)
-                await self._writer.drain()
-                reply = await _read_expected_reply(
-                    self._reader, request, reply_length
-                )
-        except Exception as err:
-            # Drop the stream after any failed transaction. This clears partial
-            # bytes and lets serialx reopen a clean connection on the next poll.
-            await self._drop_connection()
-            if _is_serialx_exception(err):
-                raise OSError(str(err) or "Serial transaction failed") from err
-            raise
-        else:
-            self._last_exchange_end = monotonic()
-            return reply
+                async with asyncio.timeout(timeout):
+                    self._writer.write(request)
+                    await self._writer.drain()
+                    reply = await _read_expected_reply(
+                        self._reader, request, reply_length
+                    )
+            except Exception as err:
+                await self._drop_connection()
+                if _is_serialx_exception(err):
+                    raise OSError(str(err) or "Serial transaction failed") from err
+                raise
+            else:
+                await self._drop_connection()
+                self._bus.last_exchange_end = monotonic()
+                return reply
 
     async def send(self, request: bytes, timeout: float) -> None:
-        """Send a write-only frame and reopen cleanly for the next transaction."""
-        await self._respect_inter_frame_delay()
-        try:
-            await self._open(timeout)
-            assert self._writer is not None
-            async with asyncio.timeout(timeout):
-                self._writer.write(request)
-                await self._writer.drain()
+        """Send a write-only frame and release the shared serial bus."""
+        async with self._bus.transaction():
+            await self._respect_inter_frame_delay()
+            try:
+                await self._open(timeout)
+                assert self._writer is not None
+                async with asyncio.timeout(timeout):
+                    self._writer.write(request)
+                    await self._writer.drain()
 
-                # At low baud rates drain() may only mean that bytes reached the
-                # OS/driver buffer. Keep the port open for at least one complete
-                # 8N1 frame time before closing it. Closing afterwards also
-                # discards any optional D0 acknowledgement so it cannot be
-                # mistaken for the next C3 status response.
-                wire_time = (len(request) * 10.0) / max(1, self.baudrate)
-                await asyncio.sleep(wire_time + 0.02)
-        except Exception as err:
-            await self._drop_connection()
-            if _is_serialx_exception(err):
-                raise OSError(str(err) or "Serial write failed") from err
-            raise
-        else:
-            await self._drop_connection()
-            self._last_exchange_end = monotonic()
+                    # At low baud rates drain() may only mean that bytes reached
+                    # the OS/driver buffer. Keep the port open for at least one
+                    # complete 8N1 frame time before closing it. Closing also
+                    # discards any optional D0 acknowledgement before the next
+                    # addressed transaction on the shared bus.
+                    wire_time = (len(request) * 10.0) / max(1, self.baudrate)
+                    await asyncio.sleep(wire_time + 0.02)
+            except Exception as err:
+                await self._drop_connection()
+                if _is_serialx_exception(err):
+                    raise OSError(str(err) or "Serial write failed") from err
+                raise
+            else:
+                await self._drop_connection()
+                self._bus.last_exchange_end = monotonic()
 
     async def close(self) -> None:
-        await self._drop_connection()
+        async with self._bus.transaction():
+            await self._drop_connection()

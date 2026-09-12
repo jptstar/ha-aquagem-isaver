@@ -34,3 +34,5 @@ jobs:
         run: python -m compileall custom_components
       - name: Validate config-flow step dispatch
         run: python tools/check_config_flow_steps.py
+      - name: Validate RS485 FIFO bus manager
+        run: python tools/check_rs485_fifo.py

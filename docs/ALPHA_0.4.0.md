@@ -2,6 +2,26 @@
 
 This alpha series separates protocol handling from the connection transport and adds direct serial / USB-RS485 support.
 
+## 0.4.0-alpha.8
+
+- Add **multiple Aquagem Modbus devices on the same physical RS485 bus**.
+- Direct USB-RS485 entries are now identified by serial port **and Modbus slave address**, so addresses such as `0xAA`, `0xAB` and `0xAC` can coexist on one adapter.
+- RS485/TCP entries are now identified by gateway host/port **and Modbus slave address**, so several pumps can share one transparent gateway.
+- Serialize complete request/reply transactions with an explicit process-wide **FIFO `Rs485BusManager`**. Separate Home Assistant config entries can no longer interleave frames on the same downstream RS485 line, and queued transactions are served in arrival order.
+- Cancelled queued transactions are removed cleanly and cannot block devices waiting behind them.
+- Direct serial transactions release the port after each frame so another addressed pump can use the same USB-RS485 adapter safely.
+- Serial framing is now explicitly opened as **8-N-1** instead of relying on serial-library defaults.
+- TCP setup accepts an optional Modbus address. Leave it empty for the existing automatic read-only protocol/address detection, or enter an address to validate a specific Modbus pump on a shared bus.
+- Reconfiguration can change a Modbus slave address without blocking other addresses already using the same serial port or TCP gateway.
+- Existing entity unique IDs stay based on the Home Assistant config-entry ID, so migration to the multi-device bus identity does not recreate entities.
+- Add CI coverage for FIFO ordering and cancellation of a queued transaction.
+- A single direct serial port still cannot mix the 1200-baud proprietary iSaver profile and the 9600-baud Aquagem Modbus profile; one physical RS485 line must use one serial configuration.
+
+## 0.4.0-alpha.7
+
+- Fix serial reconfiguration: the `reconfigure_serial` form now has the public `async_step_reconfigure_serial()` handler Home Assistant requires when the form is submitted.
+- Add a CI regression check ensuring every literal config-flow `step_id` has a matching public `async_step_<step_id>()` method.
+
 ## 0.4.0-alpha.6
 
 - Harden direct serial error handling by normalizing `serialx` backend failures into transport errors handled by the integration.
@@ -77,6 +97,8 @@ This alpha series separates protocol handling from the connection transport and 
 - optional V1.5 registers `2007..2009`
 - command register `3001`
 - address range `0xA0..0xBF`, default `0xAA`
+- multiple addressed pumps may share one USB-RS485 adapter
+- request/reply transactions are serialized FIFO per physical bus
 
 ## Hardware
 

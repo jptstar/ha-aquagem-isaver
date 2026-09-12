@@ -153,10 +153,53 @@ def _serial_transport(serial_port: str, protocol: str) -> SerialTransport:
     )
 
 
+def _device_unique_id(
+    transport: str,
+    protocol: str | None,
+    *,
+    host: str | None = None,
+    port: int | None = None,
+    serial_port: str | None = None,
+    unit: int = PUMP_MODBUS_DEFAULT_UNIT,
+) -> str:
+    """Build a device identity allowing several Modbus units on one bus."""
+    if transport == TRANSPORT_SERIAL:
+        endpoint = f"serial:{serial_port}"
+    else:
+        endpoint = f"tcp:{host}:{port}"
+
+    if protocol == PROTOCOL_PUMP_MODBUS:
+        return f"{endpoint}:modbus:{unit:02X}"
+    if protocol == PROTOCOL_ISAVER:
+        return f"{endpoint}:isaver"
+    return endpoint
+
+
+def _entry_unique_id(entry) -> str:
+    """Build the canonical identity for an existing entry."""
+    data = entry.data
+    transport = data.get(CONF_TRANSPORT, TRANSPORT_TCP)
+    return _device_unique_id(
+        transport,
+        data.get(CONF_PROTOCOL),
+        host=data.get(CONF_HOST),
+        port=data.get(CONF_PORT, DEFAULT_PORT),
+        serial_port=data.get(CONF_SERIAL_PORT),
+        unit=int(data.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT)),
+    )
+
+
+def _modbus_title(name: str, endpoint: str, protocol: str | None, unit: int) -> str:
+    """Include the slave address when a bus can contain several pumps."""
+    if protocol == PROTOCOL_PUMP_MODBUS:
+        return f"{name} {endpoint} [0x{unit:02X}]"
+    return f"{name} {endpoint}"
+
+
 class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Configure an Aquagem pump over TCP or direct serial."""
 
-    VERSION = 3
+    VERSION = 4
 
     def __init__(self) -> None:
         self._pending_name = DEFAULT_NAME
@@ -198,43 +241,82 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = str(user_input[CONF_HOST]).strip()
             port = int(user_input[CONF_PORT])
+            raw_unit = user_input.get(CONF_MODBUS_UNIT, "")
+            forced_unit = None
 
-            await self.async_set_unique_id(f"{host}:{port}")
-            self._abort_if_unique_id_configured()
-
-            client = AquagemClient(host, port)
-            try:
-                await client.test_connection()
-            except AquagemConnectionError:
-                errors["base"] = "cannot_connect"
-            else:
+            if str(raw_unit).strip():
                 try:
-                    await client.detect_protocol()
-                except AquagemError:
-                    self._pending_data = {
-                        CONF_NAME: self._pending_name,
-                        CONF_TRANSPORT: TRANSPORT_TCP,
-                        CONF_HOST: host,
-                        CONF_PORT: port,
-                        CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
-                    }
-                    return await self.async_step_manual()
+                    forced_unit = _parse_modbus_unit(raw_unit)
+                except (TypeError, ValueError):
+                    errors["base"] = "invalid_modbus_address"
 
-                data = {
-                    CONF_NAME: self._pending_name,
-                    CONF_TRANSPORT: TRANSPORT_TCP,
-                    CONF_HOST: host,
-                    CONF_PORT: port,
-                    CONF_PROTOCOL: client.protocol,
-                    CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
-                }
-                if client.is_pump_modbus:
-                    data[CONF_MODBUS_UNIT] = client.modbus_unit
-                return self.async_create_entry(
-                    title=f"{self._pending_name} {host}", data=data
-                )
-            finally:
-                await client.async_close()
+            if not errors:
+                if forced_unit is not None:
+                    client = AquagemClient(
+                        host,
+                        port,
+                        protocol=PROTOCOL_PUMP_MODBUS,
+                        modbus_unit=forced_unit,
+                    )
+                else:
+                    client = AquagemClient(host, port)
+
+                try:
+                    await client.test_connection()
+                except AquagemConnectionError:
+                    errors["base"] = "cannot_connect"
+                else:
+                    try:
+                        if forced_unit is not None:
+                            await client.validate_forced_protocol()
+                        else:
+                            await client.detect_protocol()
+                    except AquagemError:
+                        if forced_unit is not None:
+                            errors["base"] = "cannot_validate_manual"
+                        else:
+                            self._pending_data = {
+                                CONF_NAME: self._pending_name,
+                                CONF_TRANSPORT: TRANSPORT_TCP,
+                                CONF_HOST: host,
+                                CONF_PORT: port,
+                                CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
+                            }
+                            return await self.async_step_manual()
+                    else:
+                        unit = client.modbus_unit
+                        await self.async_set_unique_id(
+                            _device_unique_id(
+                                TRANSPORT_TCP,
+                                client.protocol,
+                                host=host,
+                                port=port,
+                                unit=unit,
+                            )
+                        )
+                        self._abort_if_unique_id_configured()
+
+                        data = {
+                            CONF_NAME: self._pending_name,
+                            CONF_TRANSPORT: TRANSPORT_TCP,
+                            CONF_HOST: host,
+                            CONF_PORT: port,
+                            CONF_PROTOCOL: client.protocol,
+                            CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
+                        }
+                        if client.is_pump_modbus:
+                            data[CONF_MODBUS_UNIT] = unit
+                        return self.async_create_entry(
+                            title=_modbus_title(
+                                self._pending_name,
+                                host,
+                                client.protocol,
+                                unit,
+                            ),
+                            data=data,
+                        )
+                finally:
+                    await client.async_close()
 
         return self.async_show_form(
             step_id="tcp",
@@ -242,6 +324,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_HOST): str,
                     vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
+                    vol.Optional(CONF_MODBUS_UNIT, default=""): MODBUS_ADDRESS_SELECTOR,
                 }
             ),
             errors=errors,
@@ -268,38 +351,59 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except (TypeError, ValueError):
                 errors["base"] = "invalid_modbus_address"
             else:
-                await self.async_set_unique_id(f"serial:{serial_port}")
-                self._abort_if_unique_id_configured()
-
-                client = AquagemClient(
-                    protocol=protocol,
-                    modbus_unit=unit,
-                    transport=_serial_transport(serial_port, protocol),
+                # A physical serial bus has one line configuration. Aquagem
+                # Modbus units may share it; the proprietary 1200-baud iSaver
+                # profile may not be mixed with the 9600-baud Modbus profile.
+                incompatible_bus = any(
+                    entry.data.get(CONF_TRANSPORT) == TRANSPORT_SERIAL
+                    and entry.data.get(CONF_SERIAL_PORT) == serial_port
+                    and entry.data.get(CONF_PROTOCOL) != protocol
+                    for entry in self._async_current_entries()
                 )
-                try:
-                    await client.test_connection()
-                    await client.validate_forced_protocol()
-                except (AquagemError, ValueError):
-                    errors["base"] = "cannot_validate_serial"
+                if incompatible_bus:
+                    errors["base"] = "serial_endpoint_in_use"
                 else:
-                    data = {
-                        CONF_NAME: self._pending_name,
-                        CONF_TRANSPORT: TRANSPORT_SERIAL,
-                        CONF_SERIAL_PORT: serial_port,
-                        CONF_PROTOCOL: protocol,
-                        CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
-                    }
-                    if protocol == PROTOCOL_PUMP_MODBUS:
-                        data[CONF_MODBUS_UNIT] = unit
-                    return self.async_create_entry(
-                        title=(
-                            f"{self._pending_name} "
-                            f"{_serial_title_suffix(serial_port)}"
-                        ),
-                        data=data,
+                    await self.async_set_unique_id(
+                        _device_unique_id(
+                            TRANSPORT_SERIAL,
+                            protocol,
+                            serial_port=serial_port,
+                            unit=unit,
+                        )
                     )
-                finally:
-                    await client.async_close()
+                    self._abort_if_unique_id_configured()
+
+                    client = AquagemClient(
+                        protocol=protocol,
+                        modbus_unit=unit,
+                        transport=_serial_transport(serial_port, protocol),
+                    )
+                    try:
+                        await client.test_connection()
+                        await client.validate_forced_protocol()
+                    except (AquagemError, ValueError):
+                        errors["base"] = "cannot_validate_serial"
+                    else:
+                        data = {
+                            CONF_NAME: self._pending_name,
+                            CONF_TRANSPORT: TRANSPORT_SERIAL,
+                            CONF_SERIAL_PORT: serial_port,
+                            CONF_PROTOCOL: protocol,
+                            CONF_INITIAL_OPERATING_HOURS: self._pending_initial_hours,
+                        }
+                        if protocol == PROTOCOL_PUMP_MODBUS:
+                            data[CONF_MODBUS_UNIT] = unit
+                        return self.async_create_entry(
+                            title=_modbus_title(
+                                self._pending_name,
+                                _serial_title_suffix(serial_port),
+                                protocol,
+                                unit,
+                            ),
+                            data=data,
+                        )
+                    finally:
+                        await client.async_close()
 
         return self.async_show_form(
             step_id="serial",
@@ -326,27 +430,50 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             protocol = user_input[CONF_PROTOCOL]
-            unit = int(user_input.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT))
-            client = AquagemClient(
-                self._pending_data[CONF_HOST],
-                self._pending_data[CONF_PORT],
-                protocol=protocol,
-                modbus_unit=unit,
-            )
             try:
-                await client.validate_forced_protocol()
-            except AquagemError:
-                errors["base"] = "cannot_validate_manual"
+                unit = (
+                    _parse_modbus_unit(
+                        user_input.get(CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT)
+                    )
+                    if protocol == PROTOCOL_PUMP_MODBUS
+                    else PUMP_MODBUS_DEFAULT_UNIT
+                )
+            except (TypeError, ValueError):
+                errors["base"] = "invalid_modbus_address"
             else:
-                data = {**self._pending_data, CONF_PROTOCOL: protocol}
-                if protocol == PROTOCOL_PUMP_MODBUS:
-                    data[CONF_MODBUS_UNIT] = unit
-                name = data[CONF_NAME]
-                host = data[CONF_HOST]
-                self._pending_data = None
-                return self.async_create_entry(title=f"{name} {host}", data=data)
-            finally:
-                await client.async_close()
+                client = AquagemClient(
+                    self._pending_data[CONF_HOST],
+                    self._pending_data[CONF_PORT],
+                    protocol=protocol,
+                    modbus_unit=unit,
+                )
+                try:
+                    await client.validate_forced_protocol()
+                except AquagemError:
+                    errors["base"] = "cannot_validate_manual"
+                else:
+                    await self.async_set_unique_id(
+                        _device_unique_id(
+                            TRANSPORT_TCP,
+                            protocol,
+                            host=self._pending_data[CONF_HOST],
+                            port=self._pending_data[CONF_PORT],
+                            unit=unit,
+                        )
+                    )
+                    self._abort_if_unique_id_configured()
+
+                    data = {**self._pending_data, CONF_PROTOCOL: protocol}
+                    if protocol == PROTOCOL_PUMP_MODBUS:
+                        data[CONF_MODBUS_UNIT] = unit
+                    name = data[CONF_NAME]
+                    host = data[CONF_HOST]
+                    self._pending_data = None
+                    return self.async_create_entry(
+                        title=_modbus_title(name, host, protocol, unit), data=data
+                    )
+                finally:
+                    await client.async_close()
 
         return self.async_show_form(
             step_id="manual",
@@ -357,14 +484,8 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                     vol.Optional(
                         CONF_MODBUS_UNIT,
-                        default=PUMP_MODBUS_DEFAULT_UNIT,
-                    ): vol.All(
-                        int,
-                        vol.Range(
-                            min=PUMP_MODBUS_UNIT_MIN,
-                            max=PUMP_MODBUS_UNIT_MAX,
-                        ),
-                    ),
+                        default=_format_modbus_unit(PUMP_MODBUS_DEFAULT_UNIT),
+                    ): MODBUS_ADDRESS_SELECTOR,
                 }
             ),
             errors=errors,
@@ -380,75 +501,123 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _async_step_reconfigure_tcp(self, reconfigure_entry, user_input):
         errors = {}
+        protocol = reconfigure_entry.data.get(CONF_PROTOCOL)
 
         if user_input is not None:
             name = str(user_input[CONF_NAME]).strip() or DEFAULT_NAME
             host = str(user_input[CONF_HOST]).strip()
             port = int(user_input[CONF_PORT])
 
-            endpoint_in_use = any(
-                entry.entry_id != reconfigure_entry.entry_id
-                and entry.data.get(CONF_TRANSPORT, TRANSPORT_TCP) == TRANSPORT_TCP
-                and entry.data.get(CONF_HOST) == host
-                and entry.data.get(CONF_PORT, DEFAULT_PORT) == port
-                for entry in self._async_current_entries()
-            )
-
-            if endpoint_in_use:
-                errors["base"] = "endpoint_in_use"
-            else:
-                protocol = reconfigure_entry.data.get(CONF_PROTOCOL)
-                unit = reconfigure_entry.data.get(
-                    CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
-                )
-                client = AquagemClient(
-                    host,
-                    port,
-                    protocol=protocol,
-                    modbus_unit=unit,
-                )
-                try:
-                    await client.test_connection()
-                    if protocol is None:
-                        await client.detect_protocol()
-                    else:
-                        await client.validate_forced_protocol()
-                except AquagemError:
-                    errors["base"] = "cannot_connect"
-                else:
-                    data_updates = {
-                        CONF_NAME: name,
-                        CONF_TRANSPORT: TRANSPORT_TCP,
-                        CONF_HOST: host,
-                        CONF_PORT: port,
-                        CONF_PROTOCOL: client.protocol,
-                    }
-                    if client.is_pump_modbus:
-                        data_updates[CONF_MODBUS_UNIT] = client.modbus_unit
-                    return self.async_update_reload_and_abort(
-                        reconfigure_entry,
-                        title=f"{name} {host}",
-                        data_updates=data_updates,
+            try:
+                unit = (
+                    _parse_modbus_unit(
+                        user_input.get(
+                            CONF_MODBUS_UNIT,
+                            _format_modbus_unit(PUMP_MODBUS_DEFAULT_UNIT),
+                        )
                     )
-                finally:
-                    await client.async_close()
+                    if protocol == PROTOCOL_PUMP_MODBUS
+                    else reconfigure_entry.data.get(
+                        CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
+                    )
+                )
+            except (TypeError, ValueError):
+                errors["base"] = "invalid_modbus_address"
+            else:
+                candidate = _device_unique_id(
+                    TRANSPORT_TCP,
+                    protocol,
+                    host=host,
+                    port=port,
+                    unit=int(unit),
+                )
+                endpoint_in_use = any(
+                    entry.entry_id != reconfigure_entry.entry_id
+                    and _entry_unique_id(entry) == candidate
+                    for entry in self._async_current_entries()
+                )
+
+                if endpoint_in_use:
+                    errors["base"] = "endpoint_in_use"
+                else:
+                    client = AquagemClient(
+                        host,
+                        port,
+                        protocol=protocol,
+                        modbus_unit=int(unit),
+                    )
+                    try:
+                        await client.test_connection()
+                        if protocol is None:
+                            await client.detect_protocol()
+                        else:
+                            await client.validate_forced_protocol()
+                    except AquagemError:
+                        errors["base"] = "cannot_connect"
+                    else:
+                        candidate = _device_unique_id(
+                            TRANSPORT_TCP,
+                            client.protocol,
+                            host=host,
+                            port=port,
+                            unit=client.modbus_unit,
+                        )
+                        if any(
+                            entry.entry_id != reconfigure_entry.entry_id
+                            and _entry_unique_id(entry) == candidate
+                            for entry in self._async_current_entries()
+                        ):
+                            errors["base"] = "endpoint_in_use"
+                        else:
+                            data_updates = {
+                                CONF_NAME: name,
+                                CONF_TRANSPORT: TRANSPORT_TCP,
+                                CONF_HOST: host,
+                                CONF_PORT: port,
+                                CONF_PROTOCOL: client.protocol,
+                            }
+                            if client.is_pump_modbus:
+                                data_updates[CONF_MODBUS_UNIT] = client.modbus_unit
+                            return self.async_update_reload_and_abort(
+                                reconfigure_entry,
+                                title=_modbus_title(
+                                    name,
+                                    host,
+                                    client.protocol,
+                                    client.modbus_unit,
+                                ),
+                                data_updates=data_updates,
+                            )
+                    finally:
+                        await client.async_close()
 
         default_name = reconfigure_entry.data.get(
             CONF_NAME,
             reconfigure_entry.title.rsplit(" ", 1)[0],
         )
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_NAME, default=default_name): str,
+        schema_fields = {
+            vol.Required(CONF_NAME, default=default_name): str,
+            vol.Required(
+                CONF_HOST, default=reconfigure_entry.data[CONF_HOST]
+            ): str,
+            vol.Required(
+                CONF_PORT,
+                default=reconfigure_entry.data.get(CONF_PORT, DEFAULT_PORT),
+            ): int,
+        }
+        if protocol == PROTOCOL_PUMP_MODBUS:
+            schema_fields[
                 vol.Required(
-                    CONF_HOST, default=reconfigure_entry.data[CONF_HOST]
-                ): str,
-                vol.Required(
-                    CONF_PORT,
-                    default=reconfigure_entry.data.get(CONF_PORT, DEFAULT_PORT),
-                ): int,
-            }
-        )
+                    CONF_MODBUS_UNIT,
+                    default=_format_modbus_unit(
+                        reconfigure_entry.data.get(
+                            CONF_MODBUS_UNIT, PUMP_MODBUS_DEFAULT_UNIT
+                        )
+                    ),
+                )
+            ] = MODBUS_ADDRESS_SELECTOR
+
+        schema = vol.Schema(schema_fields)
         if user_input is not None:
             schema = self.add_suggested_values_to_schema(schema, user_input)
 
@@ -457,8 +626,7 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_reconfigure_serial(self, user_input=None):
-        """Reconfigure a serial-connected entry (public: reused by Home Assistant
-        directly when the "reconfigure_serial" form is submitted)."""
+        """Reconfigure a serial-connected entry."""
         reconfigure_entry = self._get_reconfigure_entry()
         errors = {}
         protocol = reconfigure_entry.data.get(CONF_PROTOCOL, PROTOCOL_PUMP_MODBUS)
@@ -481,14 +649,26 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except (TypeError, ValueError):
                 errors["base"] = "invalid_modbus_address"
             else:
-                endpoint_in_use = any(
+                incompatible_bus = any(
                     entry.entry_id != reconfigure_entry.entry_id
                     and entry.data.get(CONF_TRANSPORT) == TRANSPORT_SERIAL
                     and entry.data.get(CONF_SERIAL_PORT) == serial_port
+                    and entry.data.get(CONF_PROTOCOL) != protocol
+                    for entry in self._async_current_entries()
+                )
+                candidate = _device_unique_id(
+                    TRANSPORT_SERIAL,
+                    protocol,
+                    serial_port=serial_port,
+                    unit=unit,
+                )
+                address_in_use = any(
+                    entry.entry_id != reconfigure_entry.entry_id
+                    and _entry_unique_id(entry) == candidate
                     for entry in self._async_current_entries()
                 )
 
-                if endpoint_in_use:
+                if incompatible_bus or address_in_use:
                     errors["base"] = "serial_endpoint_in_use"
                 else:
                     client = AquagemClient(
@@ -512,7 +692,12 @@ class AquagemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             data_updates[CONF_MODBUS_UNIT] = unit
                         return self.async_update_reload_and_abort(
                             reconfigure_entry,
-                            title=f"{name} {_serial_title_suffix(serial_port)}",
+                            title=_modbus_title(
+                                name,
+                                _serial_title_suffix(serial_port),
+                                protocol,
+                                unit,
+                            ),
                             data_updates=data_updates,
                         )
                     finally:
