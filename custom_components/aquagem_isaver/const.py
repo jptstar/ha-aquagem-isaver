@@ -28,14 +28,17 @@ DEFAULT_FAILURE_THRESHOLD = 3
 DEFAULT_OFFLINE_SCAN_INTERVAL = 30
 DEFAULT_INITIAL_OPERATING_HOURS = 0.0
 
-# Optional adaptive polling intended to leave regular silent windows on the
-# physical control bus so a local pump panel can regain control. The feature is
-# deliberately opt-in while it is being validated across product families.
-DEFAULT_LOCAL_CONTROL_ASSIST = False
-DEFAULT_IDLE_SCAN_INTERVAL = 30
-MIN_IDLE_SCAN_INTERVAL = 10
-MAX_IDLE_SCAN_INTERVAL = 600
-LOCAL_CONTROL_FAST_WINDOW_SECONDS = 30
+# Local-panel coexistence. Real-hardware iSaver validation showed that a remote
+# D0 command keeps remote priority for about 60 seconds and that C3 reads during
+# that window prolong the override. Once the watchdog has expired, later C3 reads
+# do not re-apply the old D0 setpoint. The integration therefore uses a temporary
+# bus-silence window after Home Assistant writes, then resumes normal polling.
+# The same generic mechanism is exposed for supported Modbus/DM pumps so their
+# local panels can also receive a quiet period after a Home Assistant command.
+DEFAULT_LOCAL_CONTROL_ASSIST = True
+DEFAULT_IDLE_SCAN_INTERVAL = 65
+MIN_IDLE_SCAN_INTERVAL = 50
+MAX_IDLE_SCAN_INTERVAL = 180
 LOCAL_CONTROL_COMMAND_SETTLE_SECONDS = 5
 CHANGE_SOURCE_UNKNOWN = "unknown"
 CHANGE_SOURCE_HOME_ASSISTANT = "home_assistant"
@@ -55,12 +58,10 @@ SPEED_STEP = 100
 OFF_COMMAND = 1
 ISAVER_BAUDRATE = 1200
 
-# Field behavior of the proprietary C3/D0 profile: after a D0 remote speed
-# command, C3 status reads made more often than 60 seconds keep that remote
-# override alive. Local-panel assist therefore needs a silence longer than that
-# watchdog before the inverter can fall back to its stored/manual state.
+# Real-hardware reference for the proprietary profile. This is documentation of
+# the observed watchdog, not a hard-coded polling interval: users can tune the
+# post-command silence from 50 to 180 seconds, with 65 seconds as the default.
 ISAVER_REMOTE_OVERRIDE_SECONDS = 60
-ISAVER_MIN_IDLE_SCAN_INTERVAL = 70
 
 # Direct serial iSaver uses the same validated C3/D0 framing as TCP. Keep a
 # conservative 50 ms silence between transactions at 1200 baud.

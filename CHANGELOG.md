@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.2
+
+- Replace the beta's permanently slow local-control polling with a **temporary post-command RS485 silence**.
+- Enable local-panel assist by default for both supported protocol profiles: iSaver C3/D0 and DM15 / standard Aquagem Modbus.
+- Use **65 seconds** of silence after each Home Assistant write by default; expose an adjustable **50–180 second** range in 5-second steps.
+- Restart the silence timer when Home Assistant sends another command during the quiet window, while still allowing the command itself immediately.
+- Resume the normal configured polling interval automatically after the quiet window expires.
+- Prevent early coordinator refresh requests from emitting status reads during the protected silence.
+- Keep local/external panel changes read-only in Home Assistant: once normal polling resumes, the integration follows the pump's real state and does not write the previous HA value back.
+- Document real-hardware iSaver validation: a D0 command holds remote priority for about 60 seconds; C3 reads during that active window prolong it; C3 reads after the watchdog has expired do not re-apply the old D0 setpoint.
+- Keep the same configuration entity identities from the beta series so existing restored values remain compatible; beta values below 50 seconds are clamped to the new supported minimum.
+
 ## 0.4.1
 
 - Use the hardware-confirmed Modbus V1.5 fault map immediately when register `2008` reports a known V1.5 mode code, including Antonio Garcia's confirmed DM15 mode code `15`.
@@ -81,7 +93,7 @@
 - Detect standard Aquagem Modbus pumps at address `0xAA` first, then scan the configurable `0xA0..0xBF` range when needed.
 - Keep a manual protocol fallback when automatic detection cannot identify the pump.
 - Store the detected protocol and Modbus address so normal polling does not repeat auto-detection.
-- Expose DM15 / standard Modbus pumps as a Home Assistant `fan` with native 30–100% running-capacity control and `0` for OFF.
+- Expose DM15 / standard Aquagem Modbus pumps as a Home Assistant `fan` with native 30–100% running-capacity control and `0` for OFF.
 - Add a direct capacity setpoint number entity and actual running-capacity sensor.
 - Add the documented standard Modbus fault bits and keep register `2004` as a disabled-by-default raw diagnostic until its unit is independently established.
 - Preserve iSaver Power 1100 C3/D0 support, RPM control, Home Assistant profiles and the validated persistent OFF value `1`.

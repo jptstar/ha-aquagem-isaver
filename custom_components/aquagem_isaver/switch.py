@@ -16,7 +16,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 
 class AquagemLocalControlAssistSwitch(AquagemEntity, SwitchEntity, RestoreEntity):
-    """Allow adaptive polling that leaves silent windows for local control."""
+    """Leave a temporary quiet bus window after Home Assistant writes."""
 
     _attr_translation_key = "local_control_assist"
     _attr_entity_category = EntityCategory.CONFIG

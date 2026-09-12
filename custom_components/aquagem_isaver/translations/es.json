@@ -136,7 +136,7 @@
     "number": {
       "speed_command": {"name": "Consigna de RPM"},
       "capacity_command": {"name": "Consigna de capacidad"},
-      "idle_polling_interval": {"name": "Intervalo de sondeo en reposo para control local"}
+      "idle_polling_interval": {"name": "Silencio tras comando para el panel local"}
     },
     "switch": {
       "local_control_assist": {"name": "Ayuda al panel local"}
