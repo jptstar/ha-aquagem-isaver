@@ -12,5 +12,5 @@
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/jptstar/ha-aquagem-isaver/issues",
-  "version": "0.4.2-beta.2"
+  "version": "0.4.2-beta.3"
 }
