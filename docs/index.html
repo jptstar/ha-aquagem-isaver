@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="format-detection" content="telephone=no">
   <title>Aquagem Home Assistant — DM15, INVERsilence & iSaver RS485 control</title>
-  <meta name="description" content="Aquagem Pump 0.4.0 for Home Assistant: local control of DM15, INVERsilence and iSaver Power 1100 via USB-RS485 or RS485/TCP, Modbus, multi-device buses, power, energy and runtime monitoring.">
-  <meta name="keywords" content="Aquagem Home Assistant, Aquagem DM15 Home Assistant, INVERsilence Home Assistant, iSaver Power 1100 Home Assistant, Aquagem RS485, Aquagem Modbus, USB RS485 Home Assistant, Modbus RTU Home Assistant, Aquagem register 2004 power, pool pump Home Assistant, HACS pool pump">
+  <meta name="description" content="Aquagem Pump 0.4.0 for Home Assistant: local control of DM15, INVERsilence and iSaver Power 1100 via USB-RS485 or RS485/TCP, including validated WaveShare RS485-to-Ethernet setup, multi-device Modbus, power, energy and runtime monitoring.">
+  <meta name="keywords" content="Aquagem Home Assistant, Aquagem DM15 Home Assistant, INVERsilence Home Assistant, iSaver Power 1100 Home Assistant, WaveShare RS485 Home Assistant, WaveShare Aquagem, RS485 to Ethernet Aquagem, Aquagem RS485, Aquagem Modbus, USB RS485 Home Assistant, Modbus RTU Home Assistant, Aquagem register 2004 power, pool pump Home Assistant, HACS pool pump">
   <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
   <meta name="theme-color" content="#074f66">
   <link rel="canonical" href="https://jptstar.github.io/ha-aquagem-isaver/">
@@ -15,13 +15,13 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Aquagem Pump">
   <meta property="og:title" content="Aquagem Pump 0.4.0 — Home Assistant RS485 control">
-  <meta property="og:description" content="Local Home Assistant control for Aquagem DM15 / INVERsilence and iSaver Power 1100 through USB-RS485 or transparent RS485/TCP. No cloud required.">
+  <meta property="og:description" content="Local Home Assistant control for Aquagem DM15 / INVERsilence and iSaver Power 1100 through USB-RS485 or transparent RS485/TCP, with a validated WaveShare gateway setup. No cloud required.">
   <meta property="og:url" content="https://jptstar.github.io/ha-aquagem-isaver/">
   <meta property="og:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
   <meta property="og:image:alt" content="Aquagem Pump Home Assistant integration">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Aquagem Pump 0.4.0 — Home Assistant RS485 control">
-  <meta name="twitter:description" content="HACS integration for local Aquagem DM15, INVERsilence and iSaver control via USB-RS485 or RS485/TCP.">
+  <meta name="twitter:description" content="HACS integration for local Aquagem DM15, INVERsilence and iSaver control via USB-RS485 or RS485/TCP, including validated WaveShare gateway settings.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png">
 
   <script type="application/ld+json">
@@ -44,8 +44,8 @@
         "downloadUrl":"https://github.com/jptstar/ha-aquagem-isaver/releases/latest",
         "codeRepository":"https://github.com/jptstar/ha-aquagem-isaver",
         "license":"https://www.gnu.org/licenses/gpl-3.0.html",
-        "description":"Open-source Home Assistant integration for local Aquagem pump control via USB-RS485 or transparent RS485/TCP, including DM15 / INVERsilence Modbus and iSaver Power 1100 C3/D0.",
-        "keywords":"Aquagem, Home Assistant, DM15, INVERsilence, iSaver Power 1100, RS485, USB-RS485, Modbus RTU, HACS, pool pump"
+        "description":"Open-source Home Assistant integration for local Aquagem pump control via USB-RS485 or transparent RS485/TCP, including DM15 / INVERsilence Modbus, iSaver Power 1100 C3/D0 and a validated WaveShare RS485-to-Ethernet configuration.",
+        "keywords":"Aquagem, Home Assistant, DM15, INVERsilence, iSaver Power 1100, WaveShare, RS485, RS485-to-Ethernet, USB-RS485, Modbus RTU, HACS, pool pump"
       },
       {
         "@type":"FAQPage",
@@ -54,6 +54,11 @@
             "@type":"Question",
             "name":"Can Aquagem DM15 or INVERsilence pumps be controlled from Home Assistant?",
             "acceptedAnswer":{"@type":"Answer","text":"Yes. Aquagem Pump supports the validated DM15 / INVERsilence Modbus profile with ON/OFF, 30–100% control in 5% steps, power monitoring and diagnostics through transparent RS485/TCP or direct USB-RS485."}
+          },
+          {
+            "@type":"Question",
+            "name":"Can I use a WaveShare RS485-to-Ethernet gateway with Aquagem Pump?",
+            "acceptedAnswer":{"@type":"Answer","text":"Yes. A WaveShare RS485-to-Ethernet gateway has been validated with a real Aquagem iSaver Power 1100 in transparent TCP Server mode. The same transparent gateway principle can be used for Aquagem Modbus pumps such as DM15 with the correct 9600-8-N-1 serial settings."}
           },
           {
             "@type":"Question",
@@ -87,7 +92,7 @@
   <div class="wrap">
     <nav>
       <a class="brand" href="#top"><img src="https://raw.githubusercontent.com/jptstar/ha-aquagem-isaver/main/custom_components/aquagem_isaver/brand/icon.png" alt="Aquagem Pump Home Assistant icon"><span>Aquagem Pump</span></a>
-      <div class="navlinks"><a href="#features">Features</a><a href="#compatibility">Compatibility</a><a href="#connections">Connections</a><a href="#install">Install</a><a href="#faq">FAQ</a></div>
+      <div class="navlinks"><a href="#features">Features</a><a href="#compatibility">Compatibility</a><a href="#connections">Connections</a><a href="waveshare-rs485-home-assistant.html">WaveShare</a><a href="#install">Install</a><a href="#faq">FAQ</a></div>
     </nav>
 
     <div class="hero" id="top">
@@ -126,7 +131,7 @@
     <div class="grid">
       <div class="card"><strong>Variable-speed fan</strong><span class="muted">Native Home Assistant fan entity for ON/OFF and variable-speed control.</span></div>
       <div class="card"><strong>Direct USB-RS485</strong><span class="muted">Native Home Assistant serial stack for local Modbus RTU or iSaver C3/D0.</span></div>
-      <div class="card"><strong>Transparent RS485/TCP</strong><span class="muted">Use a WaveShare or equivalent gateway in transparent TCP Server mode.</span></div>
+      <div class="card"><strong>Transparent RS485/TCP</strong><span class="muted">Use a WaveShare or equivalent gateway in transparent TCP Server mode. A real iSaver WaveShare setup is documented.</span></div>
       <div class="card"><strong>Multi-device Modbus</strong><span class="muted">Several slave addresses can share one adapter or gateway with FIFO transaction scheduling.</span></div>
       <div class="card"><strong>Operating hours</strong><span class="muted">Persistent software runtime counter with initial value, Set and Reset actions.</span></div>
       <div class="card"><strong>Power &amp; energy</strong><span class="muted">DM-family power from register 2004 and optional V1.5 energy/diagnostic registers 2007–2009.</span></div>
@@ -154,6 +159,7 @@
       <div class="panel"><h3>Direct USB-RS485</h3><ul><li>Home Assistant 2026.9 or newer</li><li>Stable <code>/dev/serial/by-id/...</code> path recommended</li><li>DM15 / Modbus: 9600-8-N-1</li><li>iSaver: 1200-8-N-1</li><li>Uses Home Assistant's native <code>serialx</code> stack through the built-in USB dependency</li></ul></div>
       <div class="panel"><h3>Transparent RS485/TCP</h3><ul><li>TCP Server mode, commonly port 502</li><li>8 data bits, no parity, 1 stop bit</li><li>No Modbus TCP-to-RTU conversion</li><li>Automatic read-only protocol detection available</li><li>Specific Modbus slave address can be selected for shared buses</li></ul></div>
     </div>
+    <div class="callout"><strong>Validated WaveShare RS485-to-Ethernet example</strong><span>The project includes the real iSaver gateway configuration and screenshot, plus the corresponding 9600-8-N-1 guidance for DM15 / INVERsilence. <a href="waveshare-rs485-home-assistant.html">Open the WaveShare setup guide →</a></span></div>
   </section>
 
   <section id="multibus">
@@ -196,6 +202,7 @@
     <h2>Aquagem Home Assistant FAQ</h2>
     <div class="faq">
       <details open><summary>Can I control an Aquagem DM15 or INVERsilence from Home Assistant?</summary><p>Yes. The validated Modbus profile provides ON/OFF and 30–100% capacity control in 5% steps, plus power and diagnostics.</p></details>
+      <details><summary>Can I use a WaveShare RS485-to-Ethernet gateway?</summary><p>Yes. A WaveShare transparent TCP Server configuration has been validated on a real iSaver Power 1100. The dedicated setup guide includes the screenshot and the corresponding DM15 / INVERsilence baud settings.</p></details>
       <details><summary>Can several pumps use the same RS485 adapter?</summary><p>Yes for addressed Modbus pumps. Version 0.4.0 supports several slave addresses on one USB-RS485 adapter or transparent RS485/TCP gateway and serializes transactions through a shared FIFO bus manager.</p></details>
       <details><summary>Does the integration require the Aquagem cloud?</summary><p>No. Communication remains local between Home Assistant and the RS485 connection.</p></details>
       <details><summary>Does it support direct USB-RS485?</summary><p>Yes. Home Assistant 2026.9+ can use a direct serial adapter through its native serial stack. The integration explicitly opens the validated serial profiles as 8-N-1.</p></details>
