@@ -47,6 +47,15 @@ async def _read_expected_reply(
     return await reader.readexactly(reply_length)
 
 
+def _is_serialx_exception(err: BaseException) -> bool:
+    """Return whether an error is serialx-specific without importing it for TCP."""
+    try:
+        from serialx import SerialException
+    except ImportError:
+        return False
+    return isinstance(err, SerialException)
+
+
 class TcpTransport:
     """Transparent RS485-over-TCP transport."""
 
@@ -133,11 +142,17 @@ class SerialTransport:
         except ImportError as err:
             raise OSError("Home Assistant serial support is unavailable") from err
 
-        async with asyncio.timeout(timeout):
-            reader, writer = await open_serial_connection(
-                url=self.device,
-                baudrate=self.baudrate,
-            )
+        try:
+            async with asyncio.timeout(timeout):
+                reader, writer = await open_serial_connection(
+                    url=self.device,
+                    baudrate=self.baudrate,
+                )
+        except Exception as err:
+            if _is_serialx_exception(err):
+                raise OSError(str(err) or "Serial connection failed") from err
+            raise
+
         self._reader = reader
         self._writer = writer
 
@@ -149,8 +164,9 @@ class SerialTransport:
             writer.close()
             try:
                 await writer.wait_closed()
-            except OSError:
-                pass
+            except Exception as err:
+                if not isinstance(err, OSError) and not _is_serialx_exception(err):
+                    raise
 
     async def _respect_inter_frame_delay(self) -> None:
         if not self._last_exchange_end or not self.inter_frame_delay:
@@ -182,16 +198,19 @@ class SerialTransport:
                 reply = await _read_expected_reply(
                     self._reader, request, reply_length
                 )
-        except (OSError, TimeoutError, asyncio.IncompleteReadError):
+        except Exception as err:
             # Drop the stream after any failed transaction. This clears partial
             # bytes and lets serialx reopen a clean connection on the next poll.
             await self._drop_connection()
+            if _is_serialx_exception(err):
+                raise OSError(str(err) or "Serial transaction failed") from err
             raise
         else:
             self._last_exchange_end = monotonic()
             return reply
 
     async def send(self, request: bytes, timeout: float) -> None:
+        """Send a write-only frame and reopen cleanly for the next transaction."""
         await self._respect_inter_frame_delay()
         try:
             await self._open(timeout)
@@ -199,10 +218,21 @@ class SerialTransport:
             async with asyncio.timeout(timeout):
                 self._writer.write(request)
                 await self._writer.drain()
-        except (OSError, TimeoutError):
+
+                # At low baud rates drain() may only mean that bytes reached the
+                # OS/driver buffer. Keep the port open for at least one complete
+                # 8N1 frame time before closing it. Closing afterwards also
+                # discards any optional D0 acknowledgement so it cannot be
+                # mistaken for the next C3 status response.
+                wire_time = (len(request) * 10.0) / max(1, self.baudrate)
+                await asyncio.sleep(wire_time + 0.02)
+        except Exception as err:
             await self._drop_connection()
+            if _is_serialx_exception(err):
+                raise OSError(str(err) or "Serial write failed") from err
             raise
         else:
+            await self._drop_connection()
             self._last_exchange_end = monotonic()
 
     async def close(self) -> None:
