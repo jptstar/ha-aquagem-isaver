@@ -2,6 +2,15 @@
 
 This alpha series separates protocol handling from the connection transport and adds direct serial / USB-RS485 support.
 
+## 0.4.0-alpha.6
+
+- Harden direct serial error handling by normalizing `serialx` backend failures into transport errors handled by the integration.
+- After write-only iSaver D0 commands, keep the serial port open long enough for the frame to leave the UART, then close/reopen the stream before the next C3 poll. This prevents an optional D0 acknowledgement or stale bytes from being mistaken for the following status response.
+- Keep config-entry endpoint identity synchronized after TCP or serial reconfiguration so a changed endpoint cannot later be configured as an accidental duplicate.
+- Make the Modbus fault entity set stable and switch the active legacy/V1.5 bit mapping dynamically when register `2008` is learned after startup. V1.5 detection is remembered through temporary extended-register read failures.
+- Change the GitHub release workflow so automatic releases are published only after the `Validate` workflow succeeds on a push to `main`.
+- No new pump protocol commands are introduced in this hardening release.
+
 ## 0.4.0-alpha.5
 
 - Add a persistent **Operating hours** sensor for every supported pump/drive profile, on TCP and direct serial.
@@ -81,6 +90,6 @@ In Home Assistant 2026.9, the port should also appear under **Settings → Conne
 - doubled-RPM variants
 - automatic serial baud/protocol detection
 - changing an existing entry between TCP and serial transport
-- D0 acknowledgement/retry changes
+- interpreting/depending on a D0 acknowledgement for command success
 
 These are kept separate so the validated iSaver and DM-family profiles remain stable while serial transport is tested independently.
