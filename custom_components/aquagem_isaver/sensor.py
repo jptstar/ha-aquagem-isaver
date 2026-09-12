@@ -1,5 +1,7 @@
 """Aquagem pump sensors."""
 
+from datetime import timedelta
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -7,6 +9,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTime
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     CHANGE_SOURCE_EXTERNAL,
@@ -26,6 +29,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         AquagemFaultCodeSensor(coordinator, entry),
         AquagemOperatingHoursSensor(coordinator, entry),
         AquagemLastChangeSourceSensor(coordinator, entry),
+        AquagemLocalControlRemainingSensor(coordinator, entry),
     ]
     if coordinator.client.is_pump_modbus:
         entities.extend(
@@ -119,6 +123,48 @@ class AquagemLastChangeSourceSensor(AquagemEntity, SensorEntity):
     @property
     def native_value(self):
         return self.coordinator.last_change_source
+
+
+class AquagemLocalControlRemainingSensor(AquagemEntity, SensorEntity):
+    """Countdown until the physical panel can take control again."""
+
+    _attr_translation_key = "local_control_remaining"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_local_control_remaining"
+        self._last_remaining: int | None = None
+
+    @property
+    def available(self) -> bool:
+        """The countdown is local integration state and remains available offline."""
+        return True
+
+    @property
+    def native_value(self):
+        return self.coordinator.local_control_remaining_seconds
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._last_remaining = self.coordinator.local_control_remaining_seconds
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass,
+                self._handle_countdown_tick,
+                timedelta(seconds=1),
+            )
+        )
+
+    def _handle_countdown_tick(self, _now) -> None:
+        """Refresh the entity only when the visible countdown value changes."""
+        remaining = self.coordinator.local_control_remaining_seconds
+        if remaining == self._last_remaining:
+            return
+        self._last_remaining = remaining
+        self.async_write_ha_state()
 
 
 class AquagemPowerSensor(AquagemEntity, SensorEntity):

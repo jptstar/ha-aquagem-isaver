@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import timedelta
 import logging
+from math import ceil
 from time import monotonic
 
 from homeassistant.core import HomeAssistant
@@ -86,6 +87,18 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
     def idle_scan_interval_seconds(self) -> int:
         """Return the configured post-command silence in seconds."""
         return self._idle_scan_interval_seconds
+
+    @property
+    def local_control_remaining_seconds(self) -> int:
+        """Return whole seconds remaining before the local panel can take control."""
+        if not self.local_control_assist:
+            return 0
+        return max(0, ceil(self._quiet_until - monotonic()))
+
+    @property
+    def local_control_available(self) -> bool:
+        """Return whether the protected post-command quiet window has expired."""
+        return self.local_control_remaining_seconds == 0
 
     @staticmethod
     def _control_state(status: AquagemStatus) -> tuple[bool, int]:

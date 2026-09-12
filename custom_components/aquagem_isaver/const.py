@@ -36,7 +36,7 @@ DEFAULT_INITIAL_OPERATING_HOURS = 0.0
 # The same generic mechanism is exposed for supported Modbus/DM pumps so their
 # local panels can also receive a quiet period after a Home Assistant command.
 DEFAULT_LOCAL_CONTROL_ASSIST = True
-DEFAULT_IDLE_SCAN_INTERVAL = 65
+DEFAULT_IDLE_SCAN_INTERVAL = 70
 MIN_IDLE_SCAN_INTERVAL = 50
 MAX_IDLE_SCAN_INTERVAL = 180
 LOCAL_CONTROL_COMMAND_SETTLE_SECONDS = 5
@@ -60,7 +60,7 @@ ISAVER_BAUDRATE = 1200
 
 # Real-hardware reference for the proprietary profile. This is documentation of
 # the observed watchdog, not a hard-coded polling interval: users can tune the
-# post-command silence from 50 to 180 seconds, with 65 seconds as the default.
+# post-command silence from 50 to 180 seconds, with 70 seconds as the default.
 ISAVER_REMOTE_OVERRIDE_SECONDS = 60
 
 # Direct serial iSaver uses the same validated C3/D0 framing as TCP. Keep a

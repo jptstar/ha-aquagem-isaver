@@ -16,10 +16,7 @@
       "tcp": {
         "title": "RS485/TCP gateway",
         "description": "Connect through a transparent RS485/TCP gateway. Protocol detection is automatic and read-only. WaveShare: TCP Server, port 502, 8N1, Protocol None. Use 1200 baud for iSaver C3/D0 or 9600 baud for DM15 / standard Aquagem Modbus.",
-        "data": {
-          "host": "IP address",
-          "port": "TCP port"
-        }
+        "data": {"host": "IP address", "port": "TCP port"}
       },
       "serial": {
         "title": "Direct serial / USB-RS485",
@@ -41,11 +38,7 @@
       "reconfigure": {
         "title": "Reconfigure Aquagem Pump",
         "description": "Change the device name or RS485/TCP gateway connection. This alpha keeps the existing transport type unchanged during reconfiguration.",
-        "data": {
-          "name": "Device name",
-          "host": "IP address",
-          "port": "TCP port"
-        }
+        "data": {"name": "Device name", "host": "IP address", "port": "TCP port"}
       },
       "reconfigure_serial": {
         "title": "Reconfigure Aquagem Pump serial connection",
@@ -95,9 +88,7 @@
       "set_runtime": {
         "title": "Set operating-hours counter",
         "description": "Set the software hour meter to an explicit value, for example when taking over an existing pump or drive.",
-        "data": {
-          "operating_hours": "Operating hours"
-        }
+        "data": {"operating_hours": "Operating hours"}
       },
       "reset_runtime": {
         "title": "Reset operating-hours counter",
@@ -128,6 +119,7 @@
           "external": "External / local panel"
         }
       },
+      "local_control_remaining": {"name": "Time until local control"},
       "power": {"name": "Power"},
       "energy_consumption": {"name": "Energy consumption"},
       "mode_code": {"name": "Mode code"},
@@ -136,10 +128,10 @@
     "number": {
       "speed_command": {"name": "RPM setpoint"},
       "capacity_command": {"name": "Capacity setpoint"},
-      "idle_polling_interval": {"name": "Local-control idle polling interval"}
+      "idle_polling_interval": {"name": "Delay before return to local control"}
     },
     "switch": {
-      "local_control_assist": {"name": "Local panel assist"}
+      "local_control_assist": {"name": "Return to local control"}
     },
     "fan": {
       "pump": {
@@ -159,6 +151,7 @@
     },
     "binary_sensor": {
       "connectivity": {"name": "Connection"},
+      "local_control_available": {"name": "Local panel control available"},
       "alarm": {"name": "Alarm"},
       "rs485_error": {"name": "RS485 communication error"},
       "temperature_derating": {"name": "High temperature speed reduction"},

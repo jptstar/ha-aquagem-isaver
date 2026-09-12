@@ -12,36 +12,55 @@
   <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/License-GPL--3.0--or--later-blue"></a>
 </p>
 
-## Aquagem Pump 0.4.2
+## Aquagem Pump 0.4.3
 
-Version **0.4.2** promotes the local-panel coexistence work to stable. Instead of slowing polling permanently, Aquagem Pump now leaves a **temporary RS485 silence after a Home Assistant command**, then automatically returns to the normal polling interval.
+Version **0.4.3** makes local-panel coexistence clearer and easier to monitor from Home Assistant.
 
-Real-hardware iSaver validation established the important timing behavior: a D0 command keeps remote priority for about **60 seconds**; C3 reads during that active window prolong the override; after the watchdog has expired, later C3 reads do **not** re-apply the old D0 command. The stable default silence is therefore **65 seconds**, adjustable from **50 to 180 seconds** in 5-second steps.
+The feature previously named **Local panel assist** is now shown as **Return to local control / Retour au contrôle local**. It is **enabled by default**. After a Home Assistant command, Aquagem Pump temporarily stops status reads so the pump's physical panel can recover local control. The default protected silence is now **70 seconds**, adjustable from **50 to 180 seconds** in 5-second steps.
 
-The same post-command quiet-window mechanism is applied to the supported **DM15 / standard Aquagem Modbus** profile so its local panel also receives a bus-silent period after Home Assistant writes. Exact local-panel timing can vary by pump/firmware, which is why the duration remains configurable.
+Two additional entities make the handover visible:
 
-The 0.4.x line includes transparent **RS485/TCP gateways**, direct **USB-RS485 / Modbus RTU**, multi-device RS485 buses, FIFO transaction scheduling and a persistent software operating-hours counter.
+- **Local panel control available / Commande locale disponible** — binary sensor with a hand icon; ON means the physical panel is available again.
+- **Time until local control / Temps restant avant contrôle local** — live countdown in seconds during the protected silence.
+
+### Why this is needed
+
+Real-hardware validation on an **Aquagem iSaver Power 1100** established the following behavior:
+
+```text
+Home Assistant sends D0
+→ remote priority remains active for about 60 s
+→ a C3 status read during this window prolongs/restarts that remote priority
+→ after a real silent window, the physical panel regains control
+→ once local control has returned, later C3 reads do not restore the old D0 setpoint
+```
+
+Tests also showed that keeping the WaveShare TCP connection open without sending RS485 traffic does **not** keep the remote priority active. The important condition is the absence of pump protocol traffic during the handover window.
+
+Aquagem Pump therefore uses this sequence when **Return to local control** is enabled:
+
+```text
+normal polling
+→ Home Assistant changes speed/state
+→ one D0 or Modbus write
+→ 70 s protected bus silence by default
+→ local panel becomes available
+→ normal polling resumes automatically
+```
+
+A second Home Assistant command during the protected window is still accepted immediately and restarts the timer from the newest command.
+
+For **DM15 / standard Aquagem Modbus**, the same generic post-command quiet-window mechanism is applied because active RS485 communication can interfere with local-panel use. The exact handover timing can vary by model/firmware, so the delay remains configurable from **50 to 180 seconds**.
 
 > [!IMPORTANT]
 > Aquagem Pump is an unofficial community integration. It is independent and is not developed, approved, endorsed or maintained by Aquagem.
 
 ## Compatibility
 
-The integration is structured around the detected or selected **local protocol**, not only the commercial model name.
-
 | Protocol profile | Validated hardware | Serial settings | Control | Status |
 |---|---|---|---|:---:|
 | **C3 / D0** | **iSaver Power 1100** | `1200-8-N-1` | RPM `1200–2900`, OFF=`1` | ✅ Protocol validated |
 | **Modbus 03 / 10** | **DM15 / INVERsilence** | `9600-8-N-1` | Capacity `30–100%` in 5% steps, OFF=`0` | ✅ Protocol validated |
-
-The validated DM15 / INVERsilence profile uses:
-
-- holding registers `2001..2004` for fault, state, running capacity and power;
-- function `0x03` for reads;
-- function `0x10` and register `3001` for writes;
-- capacity steps `30, 35, 40, ... 100%`;
-- `3001 = 0` for OFF;
-- optional V1.5 registers `2007..2009` when supported by the pump.
 
 Other Aquagem pumps using the same register layout may work, but are not marked as validated until real-hardware feedback confirms them.
 
@@ -49,9 +68,9 @@ Other Aquagem pumps using the same register layout may work, but are not marked 
 
 ### Transparent RS485/TCP gateway
 
-This remains the easiest setup for network-connected installations. A WaveShare or equivalent gateway must stay in **transparent TCP Server mode**; Aquagem Pump sends complete serial RTU frames itself.
+A WaveShare or equivalent gateway must stay in **transparent TCP Server mode**. Aquagem Pump builds and validates the complete serial frames itself.
 
-Typical gateway settings:
+Typical settings:
 
 | Setting | Value |
 |---|---|
@@ -65,46 +84,25 @@ Typical gateway settings:
 | iSaver baud | `1200` |
 | DM15 / Aquagem Modbus baud | `9600` |
 
-Do **not** enable a gateway's “Modbus TCP to RTU” conversion mode.
+Do **not** enable a gateway's Modbus TCP-to-RTU conversion mode.
 
-#### Validated WaveShare RS485-to-Ethernet example
+A real **WaveShare RS485-to-Ethernet** installation has been validated with an iSaver Power 1100. For that setup use **1200 baud, 8 data bits, no parity, 1 stop bit, TCP Server, port 502, Protocol None and Multi-host disabled**.
 
-A **WaveShare RS485-to-Ethernet** gateway has been validated with a real **Aquagem iSaver Power 1100**. The screenshot below shows the working transparent TCP configuration used during validation.
-
-<p align="center">
-  <img src="docs/images/waveshare_isaver_setup.webp" width="900" alt="Validated WaveShare RS485-to-Ethernet settings for Aquagem iSaver Power 1100 with Home Assistant">
-</p>
-
-For the validated iSaver setup, use **1200 baud, 8 data bits, no parity, 1 stop bit, TCP Server, port 502, Protocol None and Multi-host disabled**. For a DM15 / Aquagem Modbus pump, keep the transparent gateway principle and use **9600-8-N-1** instead.
-
-The gateway is only a transparent transport: Aquagem Pump builds and validates the complete serial frames itself. Other transparent RS485/TCP gateways can work as well; WaveShare is documented here because this configuration was validated on real hardware.
-
-➡️ **[WaveShare RS485-to-Ethernet setup guide for Aquagem + Home Assistant](https://jptstar.github.io/ha-aquagem-isaver/waveshare-rs485-home-assistant.html)**
+➡️ **[WaveShare RS485-to-Ethernet setup guide](https://jptstar.github.io/ha-aquagem-isaver/waveshare-rs485-home-assistant.html)**
 
 ### Direct USB-RS485
 
-Home Assistant 2026.9+ can connect directly to a USB-RS485 adapter through its native serial stack.
+Home Assistant 2026.9+ can connect directly through its native serial stack.
 
 - iSaver C3/D0: `1200-8-N-1`
 - DM15 / Aquagem Modbus: `9600-8-N-1`
 - prefer a stable `/dev/serial/by-id/...` path when available
 
-Aquagem Pump declares the Home Assistant `usb` dependency. In Home Assistant 2026.9 that system integration supplies the compatible `serialx` version used by the direct serial transport.
-
 ## Multiple Modbus devices on one RS485 bus
 
-Version 0.4.2 supports several addressed Aquagem Modbus pumps behind the same physical bus.
+Several addressed Aquagem Modbus pumps can share one physical bus. Each slave address becomes a separate Home Assistant config entry while a shared FIFO RS485 bus manager serializes complete request/response transactions.
 
-Example with one USB-RS485 adapter:
-
-```text
-/dev/serial/by-id/usb-RS485...
-  ├── DM15 0xAA
-  ├── DM15 0xAB
-  └── DM15 0xAC
-```
-
-The same applies behind one transparent RS485/TCP gateway:
+Example:
 
 ```text
 192.168.1.50:502
@@ -113,15 +111,11 @@ The same applies behind one transparent RS485/TCP gateway:
   └── DM15 0xAC
 ```
 
-Each slave address becomes a separate Home Assistant config entry with its own entities and operating-hours counter.
-
-A shared **FIFO RS485 bus manager** serializes complete request/response transactions, so two Home Assistant entries cannot interleave frames on the same physical line. Cancelled queued requests are removed cleanly instead of blocking the bus.
-
-> One physical RS485 line still uses one serial configuration. Do not mix the 1200-baud iSaver profile and the 9600-baud Modbus profile on the same wired bus.
+Do not mix the 1200-baud iSaver profile and the 9600-baud Modbus profile on the same wired RS485 line.
 
 ## Entities
 
-Common entities for all supported profiles:
+Common entities include:
 
 | Entity | Type | Purpose |
 |---|---|---|
@@ -132,68 +126,36 @@ Common entities for all supported profiles:
 | Fault code | Sensor | Raw fault word |
 | Connection | Binary sensor | Communication status |
 | Operating hours | Sensor | Persistent software runtime counter |
-| Local panel assist | Switch | Enables the post-command bus-silence window |
-| Post-command local-panel silence | Number | Quiet-window duration, 50–180 s, default 65 s |
+| **Return to local control** | Switch | Enables the protected post-command quiet window; ON by default |
+| **Delay before return to local control** | Number | 50–180 s, default 70 s on new installs |
+| **Time until local control** | Sensor | Live seconds remaining during the quiet window |
+| **Local panel control available** | Binary sensor | Hand indicator; ON when the local panel is available |
+| Last control change source | Sensor | Home Assistant or external/local panel |
 
-Additional Modbus entities:
+Additional DM15 / Modbus entities include electrical power from register `2004`, optional energy consumption from `2007`, mode code `2008`, software version `2009`, and protocol-specific fault sensors.
 
-| Entity | Source |
-|---|---|
-| Power | register `2004`, W |
-| Energy consumption | optional register `2007`, kWh |
-| Mode code | optional register `2008` |
-| Software version | optional register `2009` |
-| Fault binary sensors | active documented legacy/V1.5 fault map |
+## Local-control handover in practice
 
-The V1.5 block is optional. Older or alternate Aquagem maps continue to work when registers `2007..2009` are not implemented. Once the map is known, inactive-map fault entities are removed instead of being left permanently unavailable.
-
-## Local-panel coexistence
-
-**Local panel assist is enabled by default in 0.4.2.** It affects polling only after a Home Assistant write.
-
-Normal behavior is:
+Example with a 70-second default:
 
 ```text
-normal polling
-→ Home Assistant changes speed/state
-→ one D0 or Modbus write
-→ 65 s bus silence by default
-→ first status read
-→ normal polling resumes
+t = 0 s    Home Assistant commands 1800 rpm
+           → remote control active
+           → countdown starts at 70 s
+           → hand binary sensor is OFF
+
+t ≈ 70 s   protected silence expires
+           → hand binary sensor becomes ON
+           → normal status polling resumes
+
+later       user changes speed on the physical panel
+           → accepted locally
+           → Home Assistant sees it on the next normal status read
 ```
 
-Another Home Assistant command is still accepted immediately during the silent period and restarts the silence timer from that newest write. Manual/early coordinator refreshes are prevented from emitting a status read while the protected window is active.
+If Home Assistant sends another command before the timer expires, the countdown restarts from that newest command.
 
-For the validated iSaver C3/D0 hardware, the 65-second default is deliberately just above the measured ~60-second remote-priority watchdog. Once that watchdog has expired, recurring C3 reads can resume at the normal polling interval without restoring the old D0 speed. This means later physical-panel changes can be detected normally by Home Assistant.
-
-For DM15 / standard Aquagem Modbus, the same mechanism is available because active RS485 communication can interfere with local-panel use. The exact timeout has not been claimed as universally identical to iSaver, so the silence remains adjustable from **50 to 180 seconds** or the feature can be disabled from the device configuration entities.
-
-## Operating-hours counter
-
-Every supported pump profile has a persistent software **Operating hours** sensor.
-
-- stored across Home Assistant restarts and integration reloads;
-- counts only while the pump is considered running;
-- pauses after the communication-failure threshold is reached;
-- can start from an existing hour value when the integration is added;
-- can be **Set** or **Reset** from the integration options.
-
-The counter is software-based and therefore cannot accumulate time while Home Assistant itself is stopped.
-
-## Automatic protocol detection
-
-Automatic detection is available for TCP gateway setup and uses **read-only probes**.
-
-The integration validates:
-
-1. the proprietary iSaver C3 response signature and CRC;
-2. the Aquagem Modbus `03` response for registers `2001..2004`;
-3. address `0xAA` first and then the Aquagem address range `0xA0..0xBF` when required;
-4. coherent frame structure, CRC, state and running-capacity values.
-
-A generic Modbus reply is not enough to identify an Aquagem pump.
-
-For shared Modbus buses, the setup can also target a specific slave address directly.
+Disabling **Return to local control** removes this protected window and restores normal polling immediately. On iSaver hardware this can prevent the physical panel from regaining control if status reads keep arriving inside the remote-priority watchdog period.
 
 ## Home Assistant control
 
@@ -207,8 +169,6 @@ For shared Modbus buses, the setup can also target a specific slave address dire
 | RPM grid | `100 rpm` |
 | HA profiles | Max · Day/Jour · Eco · Night/Nuit · Custom/Perso |
 
-The Home Assistant profiles are shortcuts created by the integration; they are not claimed to be native iSaver panel modes.
-
 ### DM15 / standard Aquagem Modbus
 
 | Control | Behaviour |
@@ -219,18 +179,13 @@ The Home Assistant profiles are shortcuts created by the integration; they are n
 | Capacity grid | `5%` |
 | Feedback | actual running capacity from register `2003` |
 
-Unsupported percentages are rounded down to the lower 5% step before writing.
+## Operating-hours counter
 
-## Communication resilience
+Every supported pump profile has a persistent software **Operating hours** sensor. It survives Home Assistant restarts and integration reloads, pauses after the communication-failure threshold is reached, and can start from an existing hour value.
 
-Short communication failures do not immediately make the pump unavailable.
+## Automatic protocol detection
 
-- the last validated state is preserved through the first two consecutive failed polls;
-- the third consecutive failure marks communication offline;
-- polling slows while offline;
-- the first successful response restores normal operation immediately.
-
-Serial transport errors drop and recreate the underlying connection cleanly on the next transaction.
+TCP gateway setup can automatically detect supported profiles using read-only probes. The integration validates the proprietary iSaver C3 response signature and the Aquagem Modbus `03` response before selecting a protocol.
 
 ## Installation
 
@@ -256,17 +211,6 @@ custom_components/aquagem_isaver
 
 into your Home Assistant `custom_components` directory and restart Home Assistant.
 
-## Setup
-
-Choose the connection method in the config flow:
-
-- **RS485/TCP**: enter the gateway host and port; automatic protocol detection is the normal path. For a shared Modbus bus, optionally enter the target slave address.
-- **Direct serial / USB-RS485**: select the serial device, select the pump protocol and enter the Modbus slave address when using DM/Aquagem Modbus.
-
-Modbus addresses are accepted in decimal or hexadecimal form in the Aquagem range `0xA0..0xBF`.
-
-Existing entries can be reconfigured without deleting their entities.
-
 ## Protocol reference
 
 ### iSaver Power 1100 — C3/D0
@@ -291,15 +235,6 @@ AA D0 0B B9 [speed hi] [speed lo] [CRC lo] [CRC hi]
 
 ### DM15 / Aquagem Modbus 03/10
 
-Core read:
-
-```text
-slave: 0xA0..0xBF (default 0xAA)
-function: 0x03
-start register: 2001
-count: 4
-```
-
 Core registers:
 
 | Register | Interpretation |
@@ -318,31 +253,22 @@ register 3001
 30..100 = running capacity in 5% steps
 ```
 
-Optional Modbus V1.5 extension:
+## Documentation
 
-| Register | Interpretation |
-|---:|---|
-| `2007` | energy consumption, scaled to kWh |
-| `2008` | mode code |
-| `2009` | software version |
-
-## Validation policy
-
-Protocol support is marked as validated only after repeatable real-hardware checks. Transport and scheduling logic is additionally checked by CI, including config-flow dispatch and FIFO/cancellation behavior for shared RS485 buses.
-
-No undocumented write command is added merely to probe hardware.
+- [Aquagem Pump documentation](https://jptstar.github.io/ha-aquagem-isaver/)
+- [Aquagem iSaver Power 1100 + Home Assistant](https://jptstar.github.io/ha-aquagem-isaver/isaver-power-1100-home-assistant.html)
+- [Aquagem DM15 / INVERsilence + Home Assistant](https://jptstar.github.io/ha-aquagem-isaver/aquagem-dm15-home-assistant.html)
+- [WaveShare RS485/TCP setup](https://jptstar.github.io/ha-aquagem-isaver/waveshare-rs485-home-assistant.html)
 
 ## Contributions & credits
 
-- **Antonio Garcia** — independent real-hardware DM15 / INVERsilence validation: Modbus read map, native 5% capacity grid, register `2004` power reporting, extended energy/diagnostic registers, confirmed Mode Code `15`, guarded write/OFF behavior and confirmation that the physical touch-panel remains locked while active Modbus communication is in use.
+**Antonio Garcia** provided independent real-hardware DM15 / INVERsilence validation including the Modbus read map, native 5% capacity grid, register `2004` power reporting, extended energy/diagnostic registers, Mode Code `15` observation and guarded write/OFF behavior.
 
 Thanks to everyone sharing diagnostics, protocol captures, device variants and real-hardware feedback.
 
 ## Project
 
 Created and maintained by **Jean-Philippe TESTART · `jptstar`**.
-
-Documentation: https://jptstar.github.io/ha-aquagem-isaver/
 
 ## License
 

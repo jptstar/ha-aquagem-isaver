@@ -16,10 +16,7 @@
       "tcp": {
         "title": "Passerelle RS485/TCP",
         "description": "Connexion via une passerelle RS485/TCP transparente. La détection du protocole est automatique et en lecture seule. WaveShare : TCP Server, port 502, 8N1, Protocol None. Utilisez 1200 bauds pour iSaver C3/D0 ou 9600 bauds pour DM15 / Modbus standard Aquagem.",
-        "data": {
-          "host": "Adresse IP",
-          "port": "Port TCP"
-        }
+        "data": {"host": "Adresse IP", "port": "Port TCP"}
       },
       "serial": {
         "title": "Série directe / USB-RS485",
@@ -41,11 +38,7 @@
       "reconfigure": {
         "title": "Reconfigurer la pompe Aquagem",
         "description": "Modifiez le nom de l'appareil ou la connexion de la passerelle RS485/TCP. Cette alpha conserve le type de transport actuel lors de la reconfiguration.",
-        "data": {
-          "name": "Nom de l'appareil",
-          "host": "Adresse IP",
-          "port": "Port TCP"
-        }
+        "data": {"name": "Nom de l'appareil", "host": "Adresse IP", "port": "Port TCP"}
       },
       "reconfigure_serial": {
         "title": "Reconfigurer la liaison série Aquagem",
@@ -95,9 +88,7 @@
       "set_runtime": {
         "title": "Régler le compteur d'heures",
         "description": "Définissez la valeur du compteur horaire logiciel, par exemple pour reprendre le compteur d'une pompe ou d'un variateur déjà en service.",
-        "data": {
-          "operating_hours": "Heures de fonctionnement"
-        }
+        "data": {"operating_hours": "Heures de fonctionnement"}
       },
       "reset_runtime": {
         "title": "Remettre le compteur d'heures à zéro",
@@ -128,6 +119,7 @@
           "external": "Externe / panneau local"
         }
       },
+      "local_control_remaining": {"name": "Temps restant avant contrôle local"},
       "power": {"name": "Puissance"},
       "energy_consumption": {"name": "Énergie consommée"},
       "mode_code": {"name": "Code de mode"},
@@ -136,10 +128,10 @@
     "number": {
       "speed_command": {"name": "Consigne RPM"},
       "capacity_command": {"name": "Consigne de capacité"},
-      "idle_polling_interval": {"name": "Silence après commande pour le panneau local"}
+      "idle_polling_interval": {"name": "Délai avant retour au contrôle local"}
     },
     "switch": {
-      "local_control_assist": {"name": "Aide au panneau local"}
+      "local_control_assist": {"name": "Retour au contrôle local"}
     },
     "fan": {
       "pump": {
@@ -159,6 +151,7 @@
     },
     "binary_sensor": {
       "connectivity": {"name": "Connexion"},
+      "local_control_available": {"name": "Commande locale disponible"},
       "alarm": {"name": "Alarme"},
       "rs485_error": {"name": "Erreur communication RS485"},
       "temperature_derating": {"name": "Réduction vitesse haute température"},
