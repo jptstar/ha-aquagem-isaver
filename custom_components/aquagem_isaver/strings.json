@@ -120,6 +120,14 @@
       "capacity": {"name": "Running capacity"},
       "fault_code": {"name": "Raw fault code"},
       "operating_hours": {"name": "Operating hours"},
+      "last_change_source": {
+        "name": "Last control change source",
+        "state": {
+          "unknown": "Unknown",
+          "home_assistant": "Home Assistant",
+          "external": "External / local panel"
+        }
+      },
       "power": {"name": "Power"},
       "energy_consumption": {"name": "Energy consumption"},
       "mode_code": {"name": "Mode code"},
@@ -127,7 +135,11 @@
     },
     "number": {
       "speed_command": {"name": "RPM setpoint"},
-      "capacity_command": {"name": "Capacity setpoint"}
+      "capacity_command": {"name": "Capacity setpoint"},
+      "idle_polling_interval": {"name": "Local-control idle polling interval"}
+    },
+    "switch": {
+      "local_control_assist": {"name": "Local panel assist"}
     },
     "fan": {
       "pump": {

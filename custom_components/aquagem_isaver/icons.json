@@ -5,6 +5,7 @@
       "capacity": {"default": "mdi:speedometer"},
       "fault_code": {"default": "mdi:code-braces"},
       "operating_hours": {"default": "mdi:timer-outline"},
+      "last_change_source": {"default": "mdi:account-switch-outline"},
       "power": {"default": "mdi:flash"},
       "energy_consumption": {"default": "mdi:lightning-bolt-circle"},
       "mode_code": {"default": "mdi:identifier"},
@@ -12,7 +13,11 @@
     },
     "number": {
       "speed_command": {"default": "mdi:speedometer"},
-      "capacity_command": {"default": "mdi:speedometer"}
+      "capacity_command": {"default": "mdi:speedometer"},
+      "idle_polling_interval": {"default": "mdi:timer-sand"}
+    },
+    "switch": {
+      "local_control_assist": {"default": "mdi:hand-back-right-outline"}
     },
     "fan": {
       "pump": {"default": "mdi:pump"}

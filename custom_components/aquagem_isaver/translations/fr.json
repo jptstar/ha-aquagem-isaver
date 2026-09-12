@@ -120,6 +120,14 @@
       "capacity": {"name": "Capacité de fonctionnement"},
       "fault_code": {"name": "Code défaut brut"},
       "operating_hours": {"name": "Heures de fonctionnement"},
+      "last_change_source": {
+        "name": "Source du dernier changement de commande",
+        "state": {
+          "unknown": "Inconnue",
+          "home_assistant": "Home Assistant",
+          "external": "Externe / panneau local"
+        }
+      },
       "power": {"name": "Puissance"},
       "energy_consumption": {"name": "Énergie consommée"},
       "mode_code": {"name": "Code de mode"},
@@ -127,7 +135,11 @@
     },
     "number": {
       "speed_command": {"name": "Consigne RPM"},
-      "capacity_command": {"name": "Consigne de capacité"}
+      "capacity_command": {"name": "Consigne de capacité"},
+      "idle_polling_interval": {"name": "Intervalle au repos pour la commande locale"}
+    },
+    "switch": {
+      "local_control_assist": {"name": "Aide au panneau local"}
     },
     "fan": {
       "pump": {

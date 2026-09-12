@@ -120,6 +120,14 @@
       "capacity": {"name": "Capacidad de funcionamiento"},
       "fault_code": {"name": "Código de fallo sin procesar"},
       "operating_hours": {"name": "Horas de funcionamiento"},
+      "last_change_source": {
+        "name": "Origen del último cambio de control",
+        "state": {
+          "unknown": "Desconocido",
+          "home_assistant": "Home Assistant",
+          "external": "Externo / panel local"
+        }
+      },
       "power": {"name": "Potencia"},
       "energy_consumption": {"name": "Consumo de energía"},
       "mode_code": {"name": "Código de modo"},
@@ -127,7 +135,11 @@
     },
     "number": {
       "speed_command": {"name": "Consigna de RPM"},
-      "capacity_command": {"name": "Consigna de capacidad"}
+      "capacity_command": {"name": "Consigna de capacidad"},
+      "idle_polling_interval": {"name": "Intervalo de sondeo en reposo para control local"}
+    },
+    "switch": {
+      "local_control_assist": {"name": "Ayuda al panel local"}
     },
     "fan": {
       "pump": {

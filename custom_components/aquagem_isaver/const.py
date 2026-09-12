@@ -1,7 +1,7 @@
 """Constants for supported Aquagem pump protocols."""
 
 DOMAIN = "aquagem_isaver"
-PLATFORMS = ["sensor", "number", "fan", "binary_sensor"]
+PLATFORMS = ["sensor", "number", "fan", "binary_sensor", "switch"]
 
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_MIN_OPERATING_SPEED = "min_operating_speed"
@@ -27,6 +27,19 @@ DEFAULT_SCAN_INTERVAL = 5
 DEFAULT_FAILURE_THRESHOLD = 3
 DEFAULT_OFFLINE_SCAN_INTERVAL = 30
 DEFAULT_INITIAL_OPERATING_HOURS = 0.0
+
+# Optional adaptive polling intended to leave regular silent windows on the
+# physical control bus so a local pump panel can regain control. The feature is
+# deliberately opt-in while it is being validated across product families.
+DEFAULT_LOCAL_CONTROL_ASSIST = False
+DEFAULT_IDLE_SCAN_INTERVAL = 30
+MIN_IDLE_SCAN_INTERVAL = 10
+MAX_IDLE_SCAN_INTERVAL = 600
+LOCAL_CONTROL_FAST_WINDOW_SECONDS = 30
+LOCAL_CONTROL_COMMAND_SETTLE_SECONDS = 5
+CHANGE_SOURCE_UNKNOWN = "unknown"
+CHANGE_SOURCE_HOME_ASSISTANT = "home_assistant"
+CHANGE_SOURCE_EXTERNAL = "external"
 
 # Protocol identifiers are intentionally model-independent where possible.
 # Auto-detection validates protocol signatures; it does not guess a commercial

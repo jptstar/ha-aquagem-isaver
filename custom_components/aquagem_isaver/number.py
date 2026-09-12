@@ -1,6 +1,9 @@
-"""Aquagem direct speed/capacity command."""
+"""Aquagem direct speed/capacity command and adaptive polling control."""
 
 from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.const import UnitOfTime
+from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     CONF_MAX_OPERATING_SPEED,
@@ -8,14 +11,21 @@ from .const import (
     DEFAULT_MAX_OPERATING_SPEED,
     DEFAULT_MIN_OPERATING_SPEED,
     DOMAIN,
+    MAX_IDLE_SCAN_INTERVAL,
+    MIN_IDLE_SCAN_INTERVAL,
 )
 from .entity import AquagemEntity
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up the direct protocol-native setpoint entity."""
+    """Set up protocol-native setpoint and adaptive polling controls."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([AquagemSpeedNumber(coordinator, entry)])
+    async_add_entities(
+        [
+            AquagemSpeedNumber(coordinator, entry),
+            AquagemIdlePollingIntervalNumber(coordinator, entry),
+        ]
+    )
 
 
 class AquagemSpeedNumber(AquagemEntity, NumberEntity):
@@ -65,3 +75,44 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
             speed = round(value / step) * step
         speed = min(self._attr_native_max_value, max(self._attr_native_min_value, speed))
         await self.coordinator.async_set_speed(int(speed))
+
+
+class AquagemIdlePollingIntervalNumber(AquagemEntity, NumberEntity, RestoreEntity):
+    """Polling interval used while local-control assist is idle."""
+
+    _attr_translation_key = "idle_polling_interval"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_mode = NumberMode.BOX
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_native_step = 5
+    _attr_native_max_value = MAX_IDLE_SCAN_INTERVAL
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_idle_polling_interval"
+        self._attr_native_min_value = max(
+            MIN_IDLE_SCAN_INTERVAL, coordinator.normal_scan_interval_seconds
+        )
+
+    @property
+    def available(self) -> bool:
+        """Keep the configuration number available while the pump is offline."""
+        return True
+
+    @property
+    def native_value(self):
+        return self.coordinator.idle_scan_interval_seconds
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if (last_state := await self.async_get_last_state()) is None:
+            return
+        try:
+            restored = float(last_state.state)
+        except (TypeError, ValueError):
+            return
+        self.coordinator.set_idle_scan_interval(restored)
+
+    async def async_set_native_value(self, value: float) -> None:
+        self.coordinator.set_idle_scan_interval(value)
+        self.async_write_ha_state()
