@@ -1,4 +1,4 @@
-"""Aquagem direct speed/capacity command and adaptive polling control."""
+"""Aquagem direct speed/capacity command and local-panel timing control."""
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import UnitOfTime
@@ -17,7 +17,7 @@ from .entity import AquagemEntity
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up protocol-native setpoint and adaptive polling controls."""
+    """Set up protocol-native setpoint and local-panel timing controls."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
@@ -77,8 +77,11 @@ class AquagemSpeedNumber(AquagemEntity, NumberEntity):
 
 
 class AquagemIdlePollingIntervalNumber(AquagemEntity, NumberEntity, RestoreEntity):
-    """Polling interval used while local-control assist is idle."""
+    """Post-command bus silence used by local-panel assist."""
 
+    # Keep the beta translation key and unique ID so existing installations retain
+    # their entity registry entry and restored value. In 0.4.2 the entity's
+    # meaning is explicitly the post-command silence, not a permanent idle poll.
     _attr_translation_key = "idle_polling_interval"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_mode = NumberMode.BOX
