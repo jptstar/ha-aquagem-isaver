@@ -9,6 +9,8 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import Platform
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import (
@@ -91,9 +93,8 @@ PUMP_MODBUS_V15_BITS = {
     description.key: description.bit for description in PUMP_MODBUS_V15_FAULTS
 }
 
-# Create a stable union of all documented Modbus fault entities. Entities not
-# present in the currently detected map remain unavailable rather than being
-# created/removed when register 2008 is learned after startup.
+# Keep a stable union only for the short period where the extended register map
+# is still genuinely unknown (for example after a transient read failure).
 _modbus_descriptions = {description.key: description for description in PUMP_MODBUS_LEGACY_FAULTS}
 _modbus_descriptions.update(
     {
@@ -105,11 +106,70 @@ _modbus_descriptions.update(
 PUMP_MODBUS_ALL_FAULTS = tuple(_modbus_descriptions.values())
 
 
+def _modbus_faults_for_setup(coordinator) -> tuple[tuple[AquagemFaultDescription, ...], bool]:
+    """Return the best-known fault map and whether the choice is definitive."""
+    data = coordinator.data
+    if data is not None and data.mode_code in PUMP_MODBUS_V15_MODE_CODES:
+        return PUMP_MODBUS_V15_FAULTS, True
+
+    # An explicit illegal-address/function response on 2007..2009 proves that
+    # this pump does not expose the V1.5 block. A transient timeout does not.
+    if getattr(coordinator.client, "_extended_modbus_supported", None) is False:
+        return PUMP_MODBUS_LEGACY_FAULTS, True
+
+    return PUMP_MODBUS_ALL_FAULTS, False
+
+
+def _remove_inactive_modbus_registry_entities(hass, entry, active_faults) -> None:
+    """Remove stale fault entities from a previously selected Modbus map."""
+    active_keys = {description.key for description in active_faults}
+    entity_registry = er.async_get(hass)
+
+    for description in PUMP_MODBUS_ALL_FAULTS:
+        if description.key in active_keys:
+            continue
+        entity_id = entity_registry.async_get_entity_id(
+            Platform.BINARY_SENSOR,
+            DOMAIN,
+            f"{entry.entry_id}_{description.key}",
+        )
+        if entity_id is not None:
+            entity_registry.async_remove(entity_id)
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up connectivity, global alarm and protocol-specific fault bits."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     protocol = coordinator.client.protocol
-    faults = ISAVER_FAULTS if protocol == PROTOCOL_ISAVER else PUMP_MODBUS_ALL_FAULTS
+
+    if protocol == PROTOCOL_ISAVER:
+        faults = ISAVER_FAULTS
+    else:
+        faults, definitive_map = _modbus_faults_for_setup(coordinator)
+        if definitive_map:
+            _remove_inactive_modbus_registry_entities(hass, entry, faults)
+        else:
+            # Keep the safe union during a genuinely transient/unknown startup.
+            # As soon as the map becomes definitive, reload once so Home
+            # Assistant recreates only the applicable diagnostic entities.
+            reload_scheduled = False
+
+            def _reload_when_fault_map_is_known() -> None:
+                nonlocal reload_scheduled
+                if reload_scheduled:
+                    return
+                _, map_is_now_definitive = _modbus_faults_for_setup(coordinator)
+                if not map_is_now_definitive:
+                    return
+                reload_scheduled = True
+                hass.async_create_task(
+                    hass.config_entries.async_reload(entry.entry_id),
+                    "Reload Aquagem fault map",
+                )
+
+            entry.async_on_unload(
+                coordinator.async_add_listener(_reload_when_fault_map_is_known)
+            )
 
     async_add_entities(
         [
