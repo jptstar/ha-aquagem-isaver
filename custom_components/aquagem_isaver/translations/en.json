@@ -136,7 +136,7 @@
     "number": {
       "speed_command": {"name": "RPM setpoint"},
       "capacity_command": {"name": "Capacity setpoint"},
-      "idle_polling_interval": {"name": "Local-control idle polling interval"}
+      "idle_polling_interval": {"name": "Post-command local-panel silence"}
     },
     "switch": {
       "local_control_assist": {"name": "Local panel assist"}
