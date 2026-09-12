@@ -8,7 +8,13 @@ from homeassistant.components.sensor import (
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTime
 from homeassistant.helpers.entity import EntityCategory
 
-from .const import DOMAIN, PUMP_MODBUS_ENERGY_SCALE
+from .const import (
+    CHANGE_SOURCE_EXTERNAL,
+    CHANGE_SOURCE_HOME_ASSISTANT,
+    CHANGE_SOURCE_UNKNOWN,
+    DOMAIN,
+    PUMP_MODBUS_ENERGY_SCALE,
+)
 from .entity import AquagemEntity
 
 
@@ -19,6 +25,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         AquagemSpeedSensor(coordinator, entry),
         AquagemFaultCodeSensor(coordinator, entry),
         AquagemOperatingHoursSensor(coordinator, entry),
+        AquagemLastChangeSourceSensor(coordinator, entry),
     ]
     if coordinator.client.is_pump_modbus:
         entities.extend(
@@ -91,6 +98,27 @@ class AquagemOperatingHoursSensor(AquagemEntity, SensorEntity):
     def available(self) -> bool:
         # The stored counter remains meaningful even while the pump is offline.
         return True
+
+
+class AquagemLastChangeSourceSensor(AquagemEntity, SensorEntity):
+    """Report whether the last detected control change came from HA or outside it."""
+
+    _attr_translation_key = "last_change_source"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [
+        CHANGE_SOURCE_UNKNOWN,
+        CHANGE_SOURCE_HOME_ASSISTANT,
+        CHANGE_SOURCE_EXTERNAL,
+    ]
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_last_change_source"
+
+    @property
+    def native_value(self):
+        return self.coordinator.last_change_source
 
 
 class AquagemPowerSensor(AquagemEntity, SensorEntity):
