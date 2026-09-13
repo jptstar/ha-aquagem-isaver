@@ -97,7 +97,9 @@ class AquagemCoordinator(DataUpdateCoordinator[AquagemStatus]):
 
     @property
     def local_control_available(self) -> bool:
-        """Return whether the protected post-command quiet window has expired."""
+        """Return whether the protected local-control handover is available."""
+        if not self.local_control_assist:
+            return False
         return self.local_control_remaining_seconds == 0
 
     @staticmethod
